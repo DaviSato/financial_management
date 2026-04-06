@@ -15,33 +15,42 @@ class NotificationService {
   static const _hourKey = 'notification_hour';
   static const _minuteKey = 'notification_minute';
   static const _defaultHour = 12;
-  static const _defaultMinute = 00;
+  static const _defaultMinute = 0;
 
   final _plugin = FlutterLocalNotificationsPlugin();
+
+  static const _androidDetails = AndroidNotificationDetails(
+    'due_expenses',
+    'Vencimentos',
+    channelDescription: 'Notificações de gastos a vencer',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+  static const _notificationDetails = NotificationDetails(
+    android: _androidDetails,
+    iOS: DarwinNotificationDetails(),
+  );
 
   Future<void> init() async {
     tz_data.initializeTimeZones();
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iOS = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: iOS),
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
     );
   }
 
   Future<bool> requestPermissions() async {
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    final iOS = _plugin
-        .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >();
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final iOS = _plugin.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
 
     bool granted = true;
     if (android != null) {
@@ -49,8 +58,11 @@ class NotificationService {
       await android.requestExactAlarmsPermission();
     }
     if (iOS != null) {
-      granted =
-          await iOS.requestPermissions(alert: true, badge: true, sound: true) ??
+      granted = await iOS.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
           false;
     }
     return granted;
@@ -96,32 +108,42 @@ class NotificationService {
       );
       if (scheduledTime.isBefore(now)) continue;
 
-      final id = _idForDate(checkDate);
       final title = due.length == 1
           ? 'Vencimento hoje: ${due.first.title}'
           : '${due.length} gastos vencem hoje';
       final body = due.map((e) => e.title).join(', ');
 
       await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        tz.TZDateTime.from(scheduledTime, tz.local),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'due_expenses',
-            'Vencimentos',
-            channelDescription: 'Notificações de gastos a vencer',
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
+        id: _idForDate(checkDate),
+        title: title,
+        body: body,
+        scheduledDate: tz.TZDateTime.from(scheduledTime, tz.local),
+        notificationDetails: _notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
+  }
+
+  /// Fires an immediate notification for expenses due today.
+  Future<void> sendTestNotification(List<Expense> allExpenses) async {
+    final today = DateTime.now();
+    final due = _expensesDueOnDate(
+      allExpenses.where((e) => e.notifyOnDue).toList(),
+      DateTime(today.year, today.month, today.day),
+    );
+    if (due.isEmpty) return;
+
+    final title = due.length == 1
+        ? 'Vencimento hoje: ${due.first.title}'
+        : '${due.length} gastos vencem hoje';
+    final body = due.map((e) => e.title).join(', ');
+
+    await _plugin.show(
+      id: 999999,
+      title: title,
+      body: body,
+      notificationDetails: _notificationDetails,
+    );
   }
 
   List<Expense> _expensesDueOnDate(List<Expense> expenses, DateTime date) {
@@ -134,8 +156,7 @@ class NotificationService {
       } else if (expense.recurrenceType == RecurrenceType.monthly) {
         if (expense.dueDate.day == date.day &&
             !date.isBefore(
-              DateTime(expense.dueDate.year, expense.dueDate.month, 1),
-            )) {
+                DateTime(expense.dueDate.year, expense.dueDate.month, 1))) {
           result.add(expense);
         }
       } else if (expense.recurrenceType == RecurrenceType.period) {
@@ -154,39 +175,6 @@ class NotificationService {
       }
     }
     return result;
-  }
-
-  /// Fires an immediate notification for expenses due today.
-  /// Uses a fixed ID (999999) so repeated taps replace the same notification.
-  Future<void> sendTestNotification(List<Expense> allExpenses) async {
-    final today = DateTime.now();
-    final due = _expensesDueOnDate(
-      allExpenses.where((e) => e.notifyOnDue).toList(),
-      DateTime(today.year, today.month, today.day),
-    );
-
-    if (due.isEmpty) return;
-
-    final title = due.length == 1
-        ? 'Vencimento hoje: ${due.first.title}'
-        : '${due.length} gastos vencem hoje';
-    final body = due.map((e) => e.title).join(', ');
-
-    await _plugin.show(
-      999999,
-      title,
-      body,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'due_expenses',
-          'Vencimentos',
-          channelDescription: 'Notificações de gastos a vencer',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-    );
   }
 
   bool _sameDay(DateTime a, DateTime b) =>

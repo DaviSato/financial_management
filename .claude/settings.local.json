@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(flutter pub:*)",
+      "Bash(flutter build:*)",
+      "Bash(dart pub:*)",
+      "Bash(python -c \"import sys,json; deps=json.load\\(sys.stdin\\); [print\\(p['name'], p['version']\\) for p in deps['packages'] if p['name']=='flutter_local_notifications']\")"
     ]
   }
 }
