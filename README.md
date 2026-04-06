@@ -163,11 +163,17 @@ lib/
 ├── providers/
 │   └── app_state.dart            # Estado global, CRUD, sync
 ├── screens/
-│   ├── dashboard_screen.dart
-│   ├── expense_screen.dart
+│   ├── dashboard/
+│   │   ├── dashboard_screen.dart
+│   │   └── widgets/              # category_breakdown, hero_card, income_expense_chart, ...
+│   ├── expense_screen/
+│   │   ├── expense_screen.dart
+│   │   └── widgets/              # expense_card, filter_bar, sort_button, ...
+│   ├── category_management/
+│   │   ├── category_management_screen.dart
+│   │   └── widgets/              # category_item, delete_category_dialog
 │   ├── income_screen.dart
-│   ├── login_screen.dart
-│   └── category_management_screen.dart
+│   └── login_screen.dart
 ├── services/
 │   ├── storage_service.dart      # SharedPreferences (sempre ativo)
 │   ├── firestore_service.dart    # Firestore (opcional)

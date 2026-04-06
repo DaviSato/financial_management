@@ -7,14 +7,14 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/app_state.dart';
-import 'screens/dashboard_screen.dart';
-import 'services/notification_service.dart';
-import 'screens/expense_screen.dart';
+import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/expense_screen/expense_screen.dart';
 import 'screens/income_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_config.dart';
 import 'services/firestore_service.dart';
+import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
 
