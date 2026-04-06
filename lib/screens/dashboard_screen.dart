@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../widgets/logout_action.dart';
 import '../widgets/month_selector.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -44,16 +45,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Painel'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: MonthSelector(
-              selectedMonth: _selectedMonth,
-              onPrevious: _prevMonth,
-              onNext: _nextMonth,
+        actions: const [LogoutAction()],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                MonthSelector(
+                  selectedMonth: _selectedMonth,
+                  onPrevious: _prevMonth,
+                  onNext: _nextMonth,
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
       body: Consumer<AppState>(
         builder: (context, appState, _) {

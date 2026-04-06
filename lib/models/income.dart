@@ -29,7 +29,7 @@ class Income {
       'id': id,
       'amount': amount,
       'notes': notes,
-      'recurrenceType': recurrenceType.toString(),
+      'recurrenceType': recurrenceType.name,
       'durationMonths': durationMonths,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -51,7 +51,7 @@ class Income {
   static RecurrenceType _parseRecurrenceType(String? value) {
     if (value == null || value.isEmpty) return RecurrenceType.once;
     return RecurrenceType.values.firstWhere(
-      (e) => e.toString() == value,
+      (e) => e.name == value,
       orElse: () => RecurrenceType.once,
     );
   }

@@ -1,5 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
@@ -7,11 +10,16 @@ import 'providers/app_state.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/expense_screen.dart';
 import 'screens/income_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
+import 'services/firebase_config.dart';
+import 'services/firestore_service.dart';
 import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load();
   await initializeDateFormatting('pt_BR', null);
   await StorageService().init();
 
@@ -24,22 +32,59 @@ void main() async {
     ),
   );
 
-  runApp(const MainApp());
+  FirestoreService? firestoreService;
+  if (FirebaseConfig.isConfigured) {
+    await Firebase.initializeApp(options: FirebaseConfig.options);
+    firestoreService = FirestoreService();
+  }
+
+  runApp(MainApp(firestoreService: firestoreService));
 }
 
 class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+  final FirestoreService? firestoreService;
+
+  const MainApp({super.key, this.firestoreService});
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AppState())],
-      child: MaterialApp(
-        title: 'Gestão Financeira',
-        theme: AppTheme.darkTheme(),
-        debugShowCheckedModeBanner: false,
-        home: const MainScreen(),
-      ),
+    return MaterialApp(
+      title: 'Gestão Financeira',
+      theme: AppTheme.darkTheme(),
+      debugShowCheckedModeBanner: false,
+      home: firestoreService != null
+          ? _AuthGate(firestoreService: firestoreService!)
+          : ChangeNotifierProvider(
+              create: (_) => AppState(),
+              child: const MainScreen(),
+            ),
+    );
+  }
+}
+
+class _AuthGate extends StatelessWidget {
+  final FirestoreService firestoreService;
+
+  const _AuthGate({required this.firestoreService});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: AuthService().authStateChanges,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.data == null) {
+          return const LoginScreen();
+        }
+        return ChangeNotifierProvider(
+          create: (_) => AppState(firestoreService)..syncFromCloud(),
+          child: const MainScreen(),
+        );
+      },
     );
   }
 }

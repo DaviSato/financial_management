@@ -4,16 +4,18 @@ import '../models/category.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
 import '../models/recurrence.dart';
+import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
 
 class AppState extends ChangeNotifier {
   final StorageService _storageService = StorageService();
+  final FirestoreService? _firestoreService;
 
   List<Income> _incomes = [];
   List<Expense> _expenses = [];
   List<Category> _categories = [];
 
-  AppState() {
+  AppState([this._firestoreService]) {
     _loadData();
   }
 
@@ -224,6 +226,7 @@ class AppState extends ChangeNotifier {
     await _storageService.saveIncome(income);
     _incomes.add(income);
     notifyListeners();
+    _firestoreService?.saveIncome(income).catchError((_) {});
   }
 
   Future<void> updateIncome(Income income) async {
@@ -233,12 +236,14 @@ class AppState extends ChangeNotifier {
       _incomes[index] = income;
       notifyListeners();
     }
+    _firestoreService?.saveIncome(income).catchError((_) {});
   }
 
   Future<void> deleteIncome(String id) async {
     await _storageService.deleteIncome(id);
     _incomes.removeWhere((i) => i.id == id);
     notifyListeners();
+    _firestoreService?.deleteIncome(id).catchError((_) {});
   }
 
   // Expense operations
@@ -246,6 +251,7 @@ class AppState extends ChangeNotifier {
     await _storageService.saveExpense(expense);
     _expenses.add(expense);
     notifyListeners();
+    _firestoreService?.saveExpense(expense).catchError((_) {});
   }
 
   Future<void> updateExpense(Expense expense) async {
@@ -255,12 +261,14 @@ class AppState extends ChangeNotifier {
       _expenses[index] = expense;
       notifyListeners();
     }
+    _firestoreService?.saveExpense(expense).catchError((_) {});
   }
 
   Future<void> deleteExpense(String id) async {
     await _storageService.deleteExpense(id);
     _expenses.removeWhere((e) => e.id == id);
     notifyListeners();
+    _firestoreService?.deleteExpense(id).catchError((_) {});
   }
 
   // Category operations
@@ -268,6 +276,7 @@ class AppState extends ChangeNotifier {
     await _storageService.addCustomCategory(category);
     _categories = await _storageService.getCategories();
     notifyListeners();
+    _firestoreService?.saveCategory(category).catchError((_) {});
   }
 
   Future<void> updateCategory(Category category) async {
@@ -279,10 +288,13 @@ class AppState extends ChangeNotifier {
       _expenses = _expenses
           .map((e) => e.category == old.name ? e.copyWith(category: category.name) : e)
           .toList();
+      final affected = _expenses.where((e) => e.category == category.name).toList();
       await _storageService.saveAllExpenses(_expenses);
+      _firestoreService?.saveExpensesBatch(affected).catchError((_) {});
     }
 
     notifyListeners();
+    _firestoreService?.saveCategory(category).catchError((_) {});
   }
 
   Future<void> deleteCustomCategory(String categoryId) async {
@@ -291,13 +303,24 @@ class AppState extends ChangeNotifier {
     _categories = await _storageService.getCategories();
 
     if (deleted.name.isNotEmpty) {
+      final affected = _expenses.where((e) => e.category == deleted.name).toList();
       _expenses = _expenses
           .map((e) => e.category == deleted.name ? e.copyWith(category: '') : e)
           .toList();
       await _storageService.saveAllExpenses(_expenses);
+      _firestoreService?.saveExpensesBatch(
+        affected.map((e) => e.copyWith(category: '')).toList(),
+      ).catchError((_) {});
     }
 
     notifyListeners();
+    _firestoreService?.deleteCategory(categoryId).catchError((_) {});
+  }
+
+  // Sync from Firestore → local, then reload
+  Future<void> syncFromCloud() async {
+    await _firestoreService?.syncFromFirestore(_storageService);
+    await _loadData();
   }
 
   // Load all data from storage

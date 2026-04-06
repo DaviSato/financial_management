@@ -84,7 +84,11 @@ class StorageService {
     await _saveExpenses(expenses);
   }
 
+  Future<void> saveAllIncomes(List<Income> incomes) => _saveIncomes(incomes);
+
   Future<void> saveAllExpenses(List<Expense> expenses) => _saveExpenses(expenses);
+
+  Future<void> saveAllCategories(List<Category> categories) => _saveCategories(categories);
 
   Future<void> _saveExpenses(List<Expense> expenses) async {
     final jsonList = expenses.map((e) => e.toJson()).toList();

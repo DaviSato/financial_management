@@ -7,6 +7,7 @@ import '../screens/category_management_screen.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/expense_form.dart';
+import '../widgets/logout_action.dart';
 import '../widgets/month_selector.dart';
 
 enum _SortOption { dateDesc, dateAsc, amountDesc, amountAsc }
@@ -88,7 +89,24 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             selected: _sortOption,
             onSelected: (opt) => setState(() => _sortOption = opt),
           ),
+          const LogoutAction(),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                MonthSelector(
+                  selectedMonth: _selectedMonth,
+                  onPrevious: _prevMonth,
+                  onNext: _nextMonth,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(context),
@@ -121,9 +139,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             children: [
               // ── Filters ──────────────────────────────────────
               _FilterBar(
-                selectedMonth: _selectedMonth,
-                onPreviousMonth: _prevMonth,
-                onNextMonth: _nextMonth,
                 categories: appState.categories,
                 selectedCategory: _selectedCategory,
                 onCategorySelected: (name) =>
@@ -182,18 +197,12 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
 class _FilterBar extends StatelessWidget {
   const _FilterBar({
-    required this.selectedMonth,
-    required this.onPreviousMonth,
-    required this.onNextMonth,
     required this.categories,
     required this.selectedCategory,
     required this.onCategorySelected,
     required this.onManageCategories,
   });
 
-  final DateTime selectedMonth;
-  final VoidCallback onPreviousMonth;
-  final VoidCallback onNextMonth;
   final List categories;
   final String? selectedCategory;
   final void Function(String?) onCategorySelected;
@@ -205,64 +214,52 @@ class _FilterBar extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MonthSelector(
-                selectedMonth: selectedMonth,
-                onPrevious: onPreviousMonth,
-                onNext: onNextMonth,
-              ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: onManageCategories,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.category,
-                          size: 16,
-                          color: Color(0xFF6E6E78),
-                        ),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: onManageCategories,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    _CategoryChip(
-                      label: 'Todos',
-                      color: AppTheme.primaryColor,
-                      selected: selectedCategory == null,
-                      onTap: () => onCategorySelected(null),
+                    child: const Icon(
+                      Icons.category,
+                      size: 16,
+                      color: Color(0xFF6E6E78),
                     ),
-                    const SizedBox(width: 8),
-                    ...categories.map(
-                      (category) => Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _CategoryChip(
-                          label: category.name,
-                          color: category.color,
-                          selected: selectedCategory == category.name,
-                          onTap: () => onCategorySelected(category.name),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                _CategoryChip(
+                  label: 'Todos',
+                  color: AppTheme.primaryColor,
+                  selected: selectedCategory == null,
+                  onTap: () => onCategorySelected(null),
+                ),
+                const SizedBox(width: 8),
+                ...categories.map(
+                  (category) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _CategoryChip(
+                      label: category.name,
+                      color: category.color,
+                      selected: selectedCategory == category.name,
+                      onTap: () => onCategorySelected(category.name),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         Container(height: 1, color: Colors.white.withValues(alpha: 0.05)),
