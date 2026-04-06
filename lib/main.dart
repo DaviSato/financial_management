@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/app_state.dart';
 import 'screens/dashboard_screen.dart';
+import 'services/notification_service.dart';
 import 'screens/expense_screen.dart';
 import 'screens/income_screen.dart';
 import 'screens/login_screen.dart';
@@ -31,6 +32,9 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
+
+  await NotificationService().init();
+  await NotificationService().requestPermissions();
 
   FirestoreService? firestoreService;
   if (FirebaseConfig.isConfigured) {

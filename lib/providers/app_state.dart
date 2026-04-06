@@ -5,6 +5,7 @@ import '../models/expense.dart';
 import '../models/income.dart';
 import '../models/recurrence.dart';
 import '../services/firestore_service.dart';
+import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 
 class AppState extends ChangeNotifier {
@@ -252,6 +253,7 @@ class AppState extends ChangeNotifier {
     _expenses.add(expense);
     notifyListeners();
     _firestoreService?.saveExpense(expense).catchError((_) {});
+    NotificationService().reschedule(_expenses).catchError((_) {});
   }
 
   Future<void> updateExpense(Expense expense) async {
@@ -262,6 +264,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
     _firestoreService?.saveExpense(expense).catchError((_) {});
+    NotificationService().reschedule(_expenses).catchError((_) {});
   }
 
   Future<void> deleteExpense(String id) async {
@@ -269,6 +272,7 @@ class AppState extends ChangeNotifier {
     _expenses.removeWhere((e) => e.id == id);
     notifyListeners();
     _firestoreService?.deleteExpense(id).catchError((_) {});
+    NotificationService().reschedule(_expenses).catchError((_) {});
   }
 
   Future<void> toggleExpensePaid(String id, DateTime month) async {
@@ -343,12 +347,26 @@ class AppState extends ChangeNotifier {
     await _loadData();
   }
 
+  Future<void> toggleNotifyOnDue(String id) async {
+    final index = _expenses.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    final updated = _expenses[index].copyWith(
+      notifyOnDue: !_expenses[index].notifyOnDue,
+    );
+    await _storageService.saveExpense(updated);
+    _expenses[index] = updated;
+    notifyListeners();
+    _firestoreService?.saveExpense(updated).catchError((_) {});
+    NotificationService().reschedule(_expenses).catchError((_) {});
+  }
+
   // Load all data from storage
   Future<void> _loadData() async {
     _incomes = await _storageService.getIncomes();
     _expenses = await _storageService.getExpenses();
     _categories = await _storageService.getCategories();
     notifyListeners();
+    NotificationService().reschedule(_expenses).catchError((_) {});
   }
 
   // Refresh data from storage

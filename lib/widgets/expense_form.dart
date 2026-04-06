@@ -30,6 +30,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
   late RecurrenceType _recurrenceType;
   late int _durationMonths;
   PaymentMethod? _paymentMethod;
+  late bool _notifyOnDue;
 
   @override
   void initState() {
@@ -49,6 +50,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
     _recurrenceType = e?.recurrenceType ?? RecurrenceType.once;
     _durationMonths = e?.durationMonths ?? 1;
     _paymentMethod = e?.paymentMethod;
+    _notifyOnDue = e?.notifyOnDue ?? false;
   }
 
   @override
@@ -136,6 +138,8 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
             ? _durationMonths
             : null,
         paymentMethod: _paymentMethod,
+        notifyOnDue: _notifyOnDue,
+        paidByMonth: widget.expense?.paidByMonth,
       ),
     );
     Navigator.of(context).pop();
@@ -356,6 +360,24 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                     decoration: const InputDecoration(
                       hintText: 'Adicione observações...',
                     ),
+                  ),
+
+                  // ── Notificação ──────────────────────────────
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    value: _notifyOnDue,
+                    onChanged: (v) => setState(() => _notifyOnDue = v),
+                    secondary: Icon(
+                      _notifyOnDue
+                          ? Icons.notifications_active_outlined
+                          : Icons.notifications_off_outlined,
+                      color: _notifyOnDue
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.white38,
+                    ),
+                    title: const Text('Notificar vencimento'),
+                    subtitle: const Text('Receba um aviso no dia que este gasto vencer'),
+                    contentPadding: EdgeInsets.zero,
                   ),
 
                   const SizedBox(height: 28),

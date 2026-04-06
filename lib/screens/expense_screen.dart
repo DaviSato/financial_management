@@ -10,7 +10,14 @@ import '../widgets/expense_form.dart';
 import '../widgets/logout_action.dart';
 import '../widgets/month_selector.dart';
 
-enum _SortOption { dateDesc, dateAsc, amountDesc, amountAsc, paidLast, categoryAz }
+enum _SortOption {
+  dateDesc,
+  dateAsc,
+  amountDesc,
+  amountAsc,
+  paidLast,
+  categoryAz,
+}
 
 class ExpenseScreen extends StatefulWidget {
   const ExpenseScreen({super.key});
@@ -220,7 +227,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                               category?.color ?? AppTheme.expenseColor;
 
                           final isPaid = expense.isPaidForMonth(_selectedMonth);
-                          final paidDate = expense.paidDateForMonth(_selectedMonth);
+                          final paidDate = expense.paidDateForMonth(
+                            _selectedMonth,
+                          );
                           return _ExpenseCard(
                             title: expense.title,
                             amount: expense.amount,
@@ -229,9 +238,13 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             color: color,
                             isPaid: isPaid,
                             paidDate: paidDate,
+                            notifyOnDue: expense.notifyOnDue,
                             onTogglePaid: () => context
                                 .read<AppState>()
                                 .toggleExpensePaid(expense.id, _selectedMonth),
+                            onToggleNotify: () => context
+                                .read<AppState>()
+                                .toggleNotifyOnDue(expense.id),
                             onEdit: () => _openForm(context, expense: expense),
                             onDelete: () => _confirmDelete(
                               context,
@@ -391,7 +404,9 @@ class _ExpenseCard extends StatelessWidget {
     required this.dueDate,
     required this.color,
     required this.isPaid,
+    required this.notifyOnDue,
     required this.onTogglePaid,
+    required this.onToggleNotify,
     required this.onEdit,
     required this.onDelete,
     this.paidDate,
@@ -403,10 +418,20 @@ class _ExpenseCard extends StatelessWidget {
   final DateTime dueDate;
   final Color color;
   final bool isPaid;
+  final bool notifyOnDue;
   final DateTime? paidDate;
   final VoidCallback onTogglePaid;
+  final VoidCallback onToggleNotify;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+
+  bool get _isOverdue {
+    if (isPaid) return false;
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final due = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    return !due.isAfter(todayDate);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -429,16 +454,25 @@ class _ExpenseCard extends StatelessWidget {
                 ),
                 child: Center(
                   child: isPaid
-                      ? Icon(Icons.check_circle_rounded,
-                          size: 20, color: AppTheme.incomColor.withValues(alpha: 0.8))
-                      : Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                      ? Icon(
+                          Icons.check_circle_rounded,
+                          size: 20,
+                          color: AppTheme.incomColor.withValues(alpha: 0.8),
+                        )
+                      : _isOverdue
+                          ? Icon(
+                              Icons.warning_amber_rounded,
+                              size: 20,
+                              color: AppTheme.expenseColor.withValues(alpha: 0.9),
+                            )
+                          : Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -512,12 +546,25 @@ class _ExpenseCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    DateFormat('dd/MM/yy', 'pt_BR').format(dueDate),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: const Color(0xFF6E6E78).withValues(alpha: dimmed),
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (notifyOnDue) ...[
+                        Icon(
+                          Icons.notifications_active_outlined,
+                          size: 10,
+                          color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                        ),
+                        const SizedBox(width: 3),
+                      ],
+                      Text(
+                        DateFormat('dd/MM/yy', 'pt_BR').format(dueDate),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: const Color(0xFF6E6E78).withValues(alpha: dimmed),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -549,6 +596,33 @@ class _ExpenseCard extends StatelessWidget {
                           Text(
                             isPaid ? 'Desmarcar pagamento' : 'Marcar como pago',
                             style: const TextStyle(color: AppTheme.incomColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      onTap: onToggleNotify,
+                      child: Row(
+                        children: [
+                          Icon(
+                            notifyOnDue
+                                ? Icons.notifications_off_outlined
+                                : Icons.notifications_outlined,
+                            size: 16,
+                            color: notifyOnDue
+                                ? Colors.white38
+                                : AppTheme.primaryColor,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            notifyOnDue
+                                ? 'Desativar notificação'
+                                : 'Notificar vencimento',
+                            style: TextStyle(
+                              color: notifyOnDue
+                                  ? Colors.white38
+                                  : AppTheme.primaryColor,
+                            ),
                           ),
                         ],
                       ),
@@ -601,9 +675,17 @@ class _SortButton extends StatelessWidget {
   static const _items = [
     (_SortOption.dateDesc, Icons.history_rounded, 'Mais recente primeiro'),
     (_SortOption.dateAsc, Icons.update_rounded, 'Mais antigo primeiro'),
-    (_SortOption.amountDesc, Icons.trending_down_rounded, 'Maior valor primeiro'),
+    (
+      _SortOption.amountDesc,
+      Icons.trending_down_rounded,
+      'Maior valor primeiro',
+    ),
     (_SortOption.amountAsc, Icons.trending_up_rounded, 'Menor valor primeiro'),
-    (_SortOption.paidLast, Icons.check_circle_outline_rounded, 'Não pagos primeiro'),
+    (
+      _SortOption.paidLast,
+      Icons.check_circle_outline_rounded,
+      'Não pagos primeiro',
+    ),
     (_SortOption.categoryAz, Icons.label_outline_rounded, 'Categoria A→Z'),
   ];
 

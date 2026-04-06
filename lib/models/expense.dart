@@ -15,6 +15,7 @@ class Expense {
   final DateTime dueDate;
   final DateTime createdAt;
   final Map<String, DateTime> paidByMonth;
+  final bool notifyOnDue;
 
   Expense({
     String? id,
@@ -28,6 +29,7 @@ class Expense {
     required this.dueDate,
     DateTime? createdAt,
     Map<String, DateTime>? paidByMonth,
+    this.notifyOnDue = false,
   }) : id = id ?? Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        paidByMonth = paidByMonth ?? {};
@@ -61,6 +63,7 @@ class Expense {
       'dueDate': dueDate.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'paidByMonth': paidByMonth.map((k, v) => MapEntry(k, v.toIso8601String())),
+      'notifyOnDue': notifyOnDue,
     };
   }
 
@@ -83,6 +86,7 @@ class Expense {
       paidByMonth: (json['paidByMonth'] as Map<String, dynamic>?)
               ?.map((k, v) => MapEntry(k, DateTime.parse(v as String))) ??
           {},
+      notifyOnDue: json['notifyOnDue'] as bool? ?? false,
     );
   }
 
@@ -113,6 +117,7 @@ class Expense {
     DateTime? dueDate,
     DateTime? createdAt,
     Map<String, DateTime>? paidByMonth,
+    bool? notifyOnDue,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -126,6 +131,7 @@ class Expense {
       dueDate: dueDate ?? this.dueDate,
       createdAt: createdAt ?? this.createdAt,
       paidByMonth: paidByMonth ?? Map.of(this.paidByMonth),
+      notifyOnDue: notifyOnDue ?? this.notifyOnDue,
     );
   }
 
