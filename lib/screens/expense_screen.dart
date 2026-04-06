@@ -7,6 +7,9 @@ import '../screens/category_management_screen.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/expense_form.dart';
+import '../widgets/month_selector.dart';
+
+enum _SortOption { dateDesc, dateAsc, amountDesc, amountAsc }
 
 class ExpenseScreen extends StatefulWidget {
   const ExpenseScreen({super.key});
@@ -16,32 +19,24 @@ class ExpenseScreen extends StatefulWidget {
 }
 
 class _ExpenseScreenState extends State<ExpenseScreen> {
-  late DateTime _startDate;
-  late DateTime _endDate;
+  late DateTime _selectedMonth;
   String? _selectedCategory;
+  _SortOption _sortOption = _SortOption.dateDesc;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _startDate = DateTime(now.year, now.month, 1);
-    _endDate = now;
+    _selectedMonth = DateTime(now.year, now.month, 1);
   }
 
-  void _selectDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
-    }
-  }
+  void _prevMonth() => setState(() {
+    _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
+  });
+
+  void _nextMonth() => setState(() {
+    _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+  });
 
   void _openForm(BuildContext context, {dynamic expense}) {
     Navigator.push(
@@ -89,15 +84,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       appBar: AppBar(
         title: const Text('Gastos'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.category_outlined, size: 20),
-            tooltip: 'Categorias',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CategoryManagementScreen(),
-              ),
-            ),
+          _SortButton(
+            selected: _sortOption,
+            onSelected: (opt) => setState(() => _sortOption = opt),
           ),
         ],
       ),
@@ -108,36 +97,43 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       ),
       body: Consumer<AppState>(
         builder: (context, appState, _) {
-          final filtered = appState.expenses.where((expense) {
-            final inRange = true;
-            // expense.dueDate.isAfter(_startDate) &&
-            // expense.dueDate.isBefore(
-            //   DateTime(
-            //     _endDate.year,
-            //     _endDate.month,
-            //     _endDate.day,
-            //     23,
-            //     59,
-            //     59,
-            //   ),
-            // );
-            final inCategory =
-                _selectedCategory == null ||
-                expense.category == _selectedCategory;
-            return inRange && inCategory;
-          }).toList()..sort((a, b) => b.dueDate.compareTo(a.dueDate));
+          final monthExpenses = appState.getExpensesListForMonth(
+            _selectedMonth,
+          );
+          final filtered =
+              monthExpenses.where((expense) {
+                return _selectedCategory == null ||
+                    expense.category == _selectedCategory;
+              }).toList()..sort((a, b) {
+                switch (_sortOption) {
+                  case _SortOption.dateDesc:
+                    return b.dueDate.compareTo(a.dueDate);
+                  case _SortOption.dateAsc:
+                    return a.dueDate.compareTo(b.dueDate);
+                  case _SortOption.amountDesc:
+                    return b.amount.compareTo(a.amount);
+                  case _SortOption.amountAsc:
+                    return a.amount.compareTo(b.amount);
+                }
+              });
 
           return Column(
             children: [
               // ── Filters ──────────────────────────────────────
               _FilterBar(
-                startDate: _startDate,
-                endDate: _endDate,
+                selectedMonth: _selectedMonth,
+                onPreviousMonth: _prevMonth,
+                onNextMonth: _nextMonth,
                 categories: appState.categories,
                 selectedCategory: _selectedCategory,
-                onDateTap: _selectDateRange,
                 onCategorySelected: (name) =>
                     setState(() => _selectedCategory = name),
+                onManageCategories: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CategoryManagementScreen(),
+                  ),
+                ),
               ),
 
               // ── List ─────────────────────────────────────────
@@ -186,24 +182,25 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
 class _FilterBar extends StatelessWidget {
   const _FilterBar({
-    required this.startDate,
-    required this.endDate,
+    required this.selectedMonth,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
     required this.categories,
     required this.selectedCategory,
-    required this.onDateTap,
     required this.onCategorySelected,
+    required this.onManageCategories,
   });
 
-  final DateTime startDate;
-  final DateTime endDate;
+  final DateTime selectedMonth;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
   final List categories;
   final String? selectedCategory;
-  final VoidCallback onDateTap;
   final void Function(String?) onCategorySelected;
+  final VoidCallback onManageCategories;
 
   @override
   Widget build(BuildContext context) {
-    final fmt = DateFormat('dd/MM/yyyy', 'pt_BR');
     return Column(
       children: [
         Container(
@@ -212,40 +209,10 @@ class _FilterBar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: onDateTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceVariant,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.06),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 14,
-                        color: Color(0xFF6E6E78),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${fmt.format(startDate)} – ${fmt.format(endDate)}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              MonthSelector(
+                selectedMonth: selectedMonth,
+                onPrevious: onPreviousMonth,
+                onNext: onNextMonth,
               ),
               const SizedBox(height: 10),
               SingleChildScrollView(
@@ -253,6 +220,27 @@ class _FilterBar extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
+                    GestureDetector(
+                      onTap: onManageCategories,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.category,
+                          size: 16,
+                          color: Color(0xFF6E6E78),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     _CategoryChip(
                       label: 'Todos',
                       color: AppTheme.primaryColor,
@@ -277,13 +265,7 @@ class _FilterBar extends StatelessWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
-            height: 1,
-            color: Colors.white.withValues(alpha: 0.05),
-          ),
-        ),
+        Container(height: 1, color: Colors.white.withValues(alpha: 0.05)),
       ],
     );
   }
@@ -409,25 +391,27 @@ class _ExpenseCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      category,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: color,
-                        fontWeight: FontWeight.w500,
+                  if (category.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        category,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: color,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -502,6 +486,115 @@ class _ExpenseCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── Sort Button ──────────────────────────────────────────────────────────────
+
+class _SortButton extends StatelessWidget {
+  const _SortButton({required this.selected, required this.onSelected});
+  final _SortOption selected;
+  final void Function(_SortOption) onSelected;
+
+  static const _items = [
+    (_SortOption.dateDesc, Icons.history_rounded, 'Mais recente primeiro'),
+    (_SortOption.dateAsc, Icons.update_rounded, 'Mais antigo primeiro'),
+    (
+      _SortOption.amountDesc,
+      Icons.trending_down_rounded,
+      'Maior valor primeiro',
+    ),
+    (_SortOption.amountAsc, Icons.trending_up_rounded, 'Menor valor primeiro'),
+  ];
+
+  bool get _isDefault => selected == _SortOption.dateDesc;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_SortOption>(
+      tooltip: 'Ordenar',
+      onSelected: onSelected,
+      offset: const Offset(0, 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.swap_vert_rounded,
+              size: 18,
+              color: _isDefault ? Colors.white54 : AppTheme.primaryColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Ordenar',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: _isDefault ? Colors.white38 : AppTheme.primaryColor,
+              ),
+            ),
+            if (!_isDefault) ...[
+              const SizedBox(width: 4),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      itemBuilder: (_) => _items.map((item) {
+        final (option, icon, label) = item;
+        final isSelected = selected == option;
+        return PopupMenuItem<_SortOption>(
+          value: option,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppTheme.primaryColor.withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: isSelected
+                      ? AppTheme.primaryColor
+                      : const Color(0xFF6E6E78),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? AppTheme.primaryColor : Colors.white,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                const Icon(
+                  Icons.check_rounded,
+                  size: 14,
+                  color: AppTheme.primaryColor,
+                ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

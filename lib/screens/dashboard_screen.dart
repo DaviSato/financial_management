@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../widgets/month_selector.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,31 +17,22 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late DateTime _startDate;
-  late DateTime _endDate;
+  late DateTime _selectedMonth;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _startDate = DateTime(now.year, now.month, 1);
-    _endDate = now;
+    _selectedMonth = DateTime(now.year, now.month, 1);
   }
 
-  void _selectDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
-    }
-  }
+  void _prevMonth() => setState(() {
+    _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
+  });
+
+  void _nextMonth() => setState(() {
+    _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+  });
 
   Color _colorForCategory(String name, List<Category> categories, int index) {
     final match = categories.where((c) => c.name == name).firstOrNull;
@@ -55,32 +47,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: TextButton.icon(
-              onPressed: _selectDateRange,
-              icon: const Icon(Icons.calendar_today_outlined, size: 15),
-              label: Text(
-                '${DateFormat('dd/MM', 'pt_BR').format(_startDate)}'
-                ' – '
-                '${DateFormat('dd/MM', 'pt_BR').format(_endDate)}',
-                style: const TextStyle(fontSize: 13),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white60,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
+            child: MonthSelector(
+              selectedMonth: _selectedMonth,
+              onPrevious: _prevMonth,
+              onNext: _nextMonth,
             ),
           ),
         ],
       ),
       body: Consumer<AppState>(
         builder: (context, appState, _) {
-          final income = appState.getCurrentMonthIncome();
-          final expenses = appState.getCurrentMonthExpenses();
+          final income = appState.getIncomeForMonth(_selectedMonth);
+          final expenses = appState.getExpensesForMonth(_selectedMonth);
           final balance = income - expenses;
-          final expensesByCategory =
-              appState.getExpensesByCategoryForDateRange(_startDate, _endDate);
-          final now = DateTime.now();
-          final monthLabel = DateFormat('MMMM yyyy', 'pt_BR').format(now);
+          final expensesByCategory = appState.getExpensesByCategoryForMonth(
+            _selectedMonth,
+          );
+          final raw = DateFormat('MMMM yyyy', 'pt_BR').format(_selectedMonth);
+          final monthLabel = raw[0].toUpperCase() + raw.substring(1);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
@@ -113,10 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // ── Expenses by Category ──────────────────────
                 if (expensesByCategory.isNotEmpty) ...[
-                  _SectionHeader(
-                    title: 'Gastos por Categoria',
-                    subtitle: _dateRangeLabel(),
-                  ),
+                  _SectionHeader(title: 'Gastos por Categoria'),
                   const SizedBox(height: 16),
                   _CategoryBreakdown(
                     expensesByCategory: expensesByCategory,
@@ -124,18 +105,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     colorForCategory: _colorForCategory,
                   ),
                 ] else if (income == 0 && expenses == 0)
-                  _EmptyChart(onTap: _selectDateRange),
+                  const _EmptyChart(),
               ],
             ),
           );
         },
       ),
     );
-  }
-
-  String _dateRangeLabel() {
-    final fmt = DateFormat('dd MMM', 'pt_BR');
-    return '${fmt.format(_startDate)} – ${fmt.format(_endDate)}';
   }
 }
 
@@ -158,8 +134,9 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPositive = balance >= 0;
     final spendRatio = income > 0 ? (expenses / income).clamp(0.0, 1.0) : 0.0;
-    final progressColor =
-        spendRatio > 0.9 ? AppTheme.expenseColor : AppTheme.incomColor;
+    final progressColor = spendRatio > 0.9
+        ? AppTheme.expenseColor
+        : AppTheme.incomColor;
 
     return Container(
       width: double.infinity,
@@ -196,8 +173,10 @@ class _HeroCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(20),
@@ -347,25 +326,15 @@ class _HeroMetric extends StatelessWidget {
 // ─── Section Header ───────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.subtitle});
+  const _SectionHeader({required this.title});
   final String title;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
-        if (subtitle != null) ...[
-          const SizedBox(width: 8),
-          Text(
-            subtitle!,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF6E6E78)),
-          ),
-        ],
-      ],
+      children: [Text(title, style: Theme.of(context).textTheme.titleLarge)],
     );
   }
 }
@@ -401,7 +370,7 @@ class _IncomeExpenseChart extends StatelessWidget {
     final sections = <PieChartSectionData>[
       if (income > 0)
         PieChartSectionData(
-          color: AppTheme.incomColor,
+          color: AppTheme.incomColor.withValues(alpha: 0.2),
           value: income,
           title: '',
           radius: 36,
@@ -656,8 +625,7 @@ class _CategoryBreakdown extends StatelessWidget {
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
 class _EmptyChart extends StatelessWidget {
-  const _EmptyChart({required this.onTap});
-  final VoidCallback onTap;
+  const _EmptyChart();
 
   @override
   Widget build(BuildContext context) {
@@ -667,9 +635,7 @@ class _EmptyChart extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         children: [
@@ -680,13 +646,8 @@ class _EmptyChart extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Sem gastos nesse período',
+            'Sem dados neste mês',
             style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: onTap,
-            child: const Text('Alterar período'),
           ),
         ],
       ),

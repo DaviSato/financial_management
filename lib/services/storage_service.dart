@@ -84,6 +84,8 @@ class StorageService {
     await _saveExpenses(expenses);
   }
 
+  Future<void> saveAllExpenses(List<Expense> expenses) => _saveExpenses(expenses);
+
   Future<void> _saveExpenses(List<Expense> expenses) async {
     final jsonList = expenses.map((e) => e.toJson()).toList();
     await _prefs.setString(_expenseKey, jsonEncode(jsonList));

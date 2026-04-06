@@ -25,6 +25,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
   late TextEditingController _notesController;
   late TextEditingController _durationController;
   late DateTime _selectedDate;
+  late int _selectedDay;
   String? _selectedCategory;
   late RecurrenceType _recurrenceType;
   late int _durationMonths;
@@ -43,11 +44,11 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
       text: e?.durationMonths?.toString() ?? '1',
     );
     _selectedDate = e?.dueDate ?? DateTime.now();
+    _selectedDay = e?.dueDate.day ?? DateTime.now().day;
     _selectedCategory = e?.category;
     _recurrenceType = e?.recurrenceType ?? RecurrenceType.once;
     _durationMonths = e?.durationMonths ?? 1;
     _paymentMethod = e?.paymentMethod;
-    _selectedDate = e?.dueDate ?? DateTime.now();
   }
 
   @override
@@ -73,9 +74,20 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _selectedDate = picked);
+  }
+
+  void _showDayPicker() async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _DayPickerSheet(selectedDay: _selectedDay),
+    );
+    if (picked != null) setState(() => _selectedDay = picked);
   }
 
   void _showError(String message) {
@@ -107,13 +119,17 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
       return;
     }
 
+    final dueDate = _recurrenceType == RecurrenceType.once
+        ? _selectedDate
+        : DateTime(_selectedDate.year, _selectedDate.month, _selectedDay);
+
     widget.onSave(
       Expense(
         id: widget.expense?.id,
         amount: amount,
         title: _titleController.text,
         category: _selectedCategory!,
-        dueDate: _selectedDate,
+        dueDate: dueDate,
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
         recurrenceType: _recurrenceType,
         durationMonths: _recurrenceType == RecurrenceType.period
@@ -203,8 +219,9 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                       );
                     }).toList(),
                     onChanged: (value) {
-                      if (value != null)
+                      if (value != null) {
                         setState(() => _selectedCategory = value);
+                      }
                     },
                     decoration: InputDecoration(
                       labelText: 'Categoria',
@@ -257,19 +274,33 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    onTap: _selectDate,
-                    canRequestFocus: false,
-                    showCursor: false,
-                    controller: TextEditingController(
-                      text:
-                          '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}',
+                  if (_recurrenceType == RecurrenceType.once)
+                    TextField(
+                      onTap: _selectDate,
+                      canRequestFocus: false,
+                      showCursor: false,
+                      controller: TextEditingController(
+                        text:
+                            '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}',
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Data de vencimento',
+                        prefixIcon: Icon(Icons.date_range_outlined),
+                      ),
+                    )
+                  else
+                    TextField(
+                      onTap: _showDayPicker,
+                      canRequestFocus: false,
+                      showCursor: false,
+                      controller: TextEditingController(
+                        text: 'Todo dia $_selectedDay',
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Dia de vencimento',
+                        prefixIcon: Icon(Icons.today_outlined),
+                      ),
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Data de vencimento',
-                      prefixIcon: Icon(Icons.date_range_outlined),
-                    ),
-                  ),
 
                   // ── Recorrência ──────────────────────────────
                   const SizedBox(height: 24),
@@ -351,6 +382,72 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _DayPickerSheet extends StatelessWidget {
+  const _DayPickerSheet({required this.selectedDay});
+  final int selectedDay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'DIA DE VENCIMENTO',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6E6E78),
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1,
+            ),
+            itemCount: 31,
+            itemBuilder: (_, index) {
+              final day = index + 1;
+              final isSelected = day == selectedDay;
+              return GestureDetector(
+                onTap: () => Navigator.pop(context, day),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$day',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                      color: isSelected ? Colors.white : Colors.white70,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

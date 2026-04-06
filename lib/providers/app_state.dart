@@ -81,12 +81,13 @@ class AppState extends ChangeNotifier {
         expanded.add(expense);
       } else if (expense.recurrenceType == RecurrenceType.monthly) {
         // Create instances for each month from date onwards (indefinite, but limited by range)
-        var current = DateTime(expense.dueDate.year, expense.dueDate.month, 1);
+        final day = expense.dueDate.day;
+        var current = DateTime(expense.dueDate.year, expense.dueDate.month, day);
         while (current.isBefore(end)) {
-          if (current.isAfter(start) || current.isAtSameMomentAs(start)) {
+          if (!current.isBefore(start)) {
             expanded.add(expense.copyWith(dueDate: current));
           }
-          current = DateTime(current.year, current.month + 1, 1);
+          current = DateTime(current.year, current.month + 1, day);
         }
       } else if (expense.recurrenceType == RecurrenceType.period) {
         // Create instances for durationMonths starting from date
@@ -142,6 +143,46 @@ class AppState extends ChangeNotifier {
         .fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
+  double getIncomeForMonth(DateTime month) {
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 1);
+    final expandedIncomes = _expandIncomes(_incomes, startDate: start, endDate: end);
+    return expandedIncomes
+        .where((i) => i.createdAt.year == month.year && i.createdAt.month == month.month)
+        .fold(0.0, (sum, i) => sum + i.amount);
+  }
+
+  double getExpensesForMonth(DateTime month) {
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 1);
+    final expandedExpenses = _expandExpenses(_expenses, startDate: start, endDate: end);
+    return expandedExpenses
+        .where((e) => e.dueDate.year == month.year && e.dueDate.month == month.month)
+        .fold(0.0, (sum, e) => sum + e.amount);
+  }
+
+  List<Expense> getExpensesListForMonth(DateTime month) {
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 1);
+    return _expandExpenses(_expenses, startDate: start, endDate: end)
+        .where((e) => e.dueDate.year == month.year && e.dueDate.month == month.month)
+        .toList();
+  }
+
+  Map<String, double> getExpensesByCategoryForMonth(DateTime month) {
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 1);
+    final expandedExpenses = _expandExpenses(_expenses, startDate: start, endDate: end);
+    final filtered = expandedExpenses.where(
+      (e) => e.dueDate.year == month.year && e.dueDate.month == month.month,
+    );
+    final map = <String, double>{};
+    for (final expense in filtered) {
+      map[expense.category] = (map[expense.category] ?? 0) + expense.amount;
+    }
+    return map;
+  }
+
   // Get expenses filtered by date range
   List<Expense> getExpensesByDateRange(DateTime start, DateTime end) {
     final normalizedEnd = DateTime(end.year, end.month, end.day, 23, 59, 59);
@@ -149,7 +190,7 @@ class AppState extends ChangeNotifier {
     return expandedExpenses
         .where(
           (expense) =>
-              expense.dueDate.isAfter(start) &&
+              !expense.dueDate.isBefore(start) &&
               expense.dueDate.isBefore(normalizedEnd),
         )
         .toList();
@@ -230,14 +271,32 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> updateCategory(Category category) async {
+    final old = _categories.firstWhere((c) => c.id == category.id, orElse: () => category);
     await _storageService.updateCategory(category);
     _categories = await _storageService.getCategories();
+
+    if (old.name != category.name) {
+      _expenses = _expenses
+          .map((e) => e.category == old.name ? e.copyWith(category: category.name) : e)
+          .toList();
+      await _storageService.saveAllExpenses(_expenses);
+    }
+
     notifyListeners();
   }
 
   Future<void> deleteCustomCategory(String categoryId) async {
+    final deleted = _categories.firstWhere((c) => c.id == categoryId, orElse: () => Category(id: categoryId, name: ''));
     await _storageService.deleteCustomCategory(categoryId);
     _categories = await _storageService.getCategories();
+
+    if (deleted.name.isNotEmpty) {
+      _expenses = _expenses
+          .map((e) => e.category == deleted.name ? e.copyWith(category: '') : e)
+          .toList();
+      await _storageService.saveAllExpenses(_expenses);
+    }
+
     notifyListeners();
   }
 

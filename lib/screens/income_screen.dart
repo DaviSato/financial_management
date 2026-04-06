@@ -64,7 +64,6 @@ class IncomeScreen extends StatelessWidget {
               return _IncomeCard(
                 title: income.title,
                 amount: income.amount,
-
                 onEdit: () {
                   Navigator.push(
                     context,
@@ -131,14 +130,12 @@ class _IncomeCard extends StatelessWidget {
   const _IncomeCard({
     required this.title,
     required this.amount,
-
     required this.onEdit,
     required this.onDelete,
   });
 
   final String title;
   final double amount;
-
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -149,7 +146,6 @@ class _IncomeCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
         child: Row(
           children: [
-            // Color indicator
             Container(
               width: 44,
               height: 44,
@@ -166,8 +162,6 @@ class _IncomeCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-
-            // Title
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,8 +180,6 @@ class _IncomeCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-
-            // Amount
             Text(
               CurrencyFormatter.format(amount),
               style: const TextStyle(
@@ -197,8 +189,6 @@ class _IncomeCard extends StatelessWidget {
                 letterSpacing: -0.4,
               ),
             ),
-
-            // Menu
             SizedBox(
               width: 32,
               child: PopupMenuButton(
