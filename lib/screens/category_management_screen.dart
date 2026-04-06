@@ -83,42 +83,88 @@ class CategoryManagementScreen extends StatelessWidget {
   void _confirmDelete(BuildContext context, Category category) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Excluir Categoria'),
-        content: Row(
+      builder: (dialogContext) => _DeleteCategoryDialog(
+        category: category,
+        onConfirm: () {
+          context.read<AppState>().deleteCustomCategory(category.id);
+          Navigator.pop(dialogContext);
+        },
+        onCancel: () => Navigator.pop(dialogContext),
+      ),
+    );
+  }
+}
+
+// ─── Delete Dialog ────────────────────────────────────────────────────────────
+
+class _DeleteCategoryDialog extends StatelessWidget {
+  const _DeleteCategoryDialog({
+    required this.category,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  final Category category;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      icon: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: AppTheme.expenseColor.withValues(alpha: 0.1),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppTheme.expenseColor,
+          size: 24,
+        ),
+      ),
+      title: const Text('Excluir categoria'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Tem certeza que deseja excluir esta categoria?',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            category.name,
+            style: TextStyle(fontSize: 12, color: category.color),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+      actions: [
+        Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: category.color,
-                borderRadius: BorderRadius.circular(6),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onCancel,
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 42)),
+                child: const Text('Cancelar'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                '"${category.name}" será excluída permanentemente.',
-                style: Theme.of(context).textTheme.bodyMedium,
+              child: FilledButton(
+                onPressed: onConfirm,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.expenseColor,
+                  minimumSize: const Size(0, 42),
+                ),
+                child: const Text('Excluir'),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.expenseColor),
-            onPressed: () {
-              context.read<AppState>().deleteCustomCategory(category.id);
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -138,61 +184,7 @@ class _CategoryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: ValueKey(category.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppTheme.expenseColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.delete_outline, color: Colors.white, size: 22),
-            SizedBox(height: 4),
-            Text('Excluir', style: TextStyle(color: Colors.white, fontSize: 11)),
-          ],
-        ),
-      ),
-      confirmDismiss: (_) async {
-        bool confirmed = false;
-        await showDialog(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Excluir Categoria'),
-            content: Text('Excluir "${category.name}"?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppTheme.expenseColor),
-                onPressed: () {
-                  confirmed = true;
-                  Navigator.pop(dialogContext);
-                },
-                child: const Text('Excluir'),
-              ),
-            ],
-          ),
-        );
-        return confirmed;
-      },
-      onDismissed: (_) {
-        context.read<AppState>().deleteCustomCategory(category.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('"${category.name}" excluída'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      },
-      child: Card(
+    return Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: ListTile(
@@ -235,7 +227,6 @@ class _CategoryItem extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }

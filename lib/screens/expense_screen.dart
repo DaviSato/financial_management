@@ -57,22 +57,63 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Excluir Gasto'),
-        content: Text('Tem certeza que deseja excluir "$title"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
+        icon: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppTheme.expenseColor.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.expenseColor,
+          child: const Icon(
+            Icons.delete_outline_rounded,
+            color: AppTheme.expenseColor,
+            size: 24,
+          ),
+        ),
+        title: const Text('Excluir gasto'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Tem certeza que deseja excluir este gasto?',
+              textAlign: TextAlign.center,
             ),
-            onPressed: () {
-              context.read<AppState>().deleteExpense(id);
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Excluir'),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 12, color: Colors.white38),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 42),
+                  ),
+                  child: const Text('Cancelar'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.expenseColor,
+                    minimumSize: const Size(0, 42),
+                  ),
+                  onPressed: () {
+                    context.read<AppState>().deleteExpense(id);
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Excluir'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
