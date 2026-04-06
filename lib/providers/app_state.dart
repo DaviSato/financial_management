@@ -271,6 +271,26 @@ class AppState extends ChangeNotifier {
     _firestoreService?.deleteExpense(id).catchError((_) {});
   }
 
+  Future<void> toggleExpensePaid(String id, DateTime month) async {
+    final index = _expenses.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    final expense = _expenses[index];
+    final updated = Map<String, DateTime>.of(expense.paidByMonth);
+    final key = expense.recurrenceType.name == 'once'
+        ? 'once'
+        : '${month.year}-${month.month.toString().padLeft(2, '0')}';
+    if (updated.containsKey(key)) {
+      updated.remove(key);
+    } else {
+      updated[key] = DateTime.now();
+    }
+    final newExpense = expense.copyWith(paidByMonth: updated);
+    await _storageService.saveExpense(newExpense);
+    _expenses[index] = newExpense;
+    notifyListeners();
+    _firestoreService?.saveExpense(newExpense).catchError((_) {});
+  }
+
   // Category operations
   Future<void> addCustomCategory(Category category) async {
     await _storageService.addCustomCategory(category);

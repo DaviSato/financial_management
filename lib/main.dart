@@ -48,43 +48,45 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Gestão Financeira',
-      theme: AppTheme.darkTheme(),
-      debugShowCheckedModeBanner: false,
-      home: firestoreService != null
-          ? _AuthGate(firestoreService: firestoreService!)
-          : ChangeNotifierProvider(
-              create: (_) => AppState(),
-              child: const MainScreen(),
-            ),
-    );
-  }
-}
+    // No Firebase: provider above MaterialApp, go straight to MainScreen
+    if (firestoreService == null) {
+      return ChangeNotifierProvider(
+        create: (_) => AppState(),
+        child: _buildMaterialApp(home: const MainScreen()),
+      );
+    }
 
-class _AuthGate extends StatelessWidget {
-  final FirestoreService firestoreService;
-
-  const _AuthGate({required this.firestoreService});
-
-  @override
-  Widget build(BuildContext context) {
+    // Firebase configured: watch auth state outside MaterialApp so the
+    // ChangeNotifierProvider always sits above the Navigator
     return StreamBuilder<User?>(
       stream: AuthService().authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          return _buildMaterialApp(
+            home: const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
           );
         }
+
         if (snapshot.data == null) {
-          return const LoginScreen();
+          return _buildMaterialApp(home: const LoginScreen());
         }
+
         return ChangeNotifierProvider(
           create: (_) => AppState(firestoreService)..syncFromCloud(),
-          child: const MainScreen(),
+          child: _buildMaterialApp(home: const MainScreen()),
         );
       },
+    );
+  }
+
+  MaterialApp _buildMaterialApp({required Widget home}) {
+    return MaterialApp(
+      title: 'Gestão Financeira',
+      theme: AppTheme.darkTheme(),
+      debugShowCheckedModeBanner: false,
+      home: home,
     );
   }
 }

@@ -14,6 +14,7 @@ class Expense {
   final PaymentMethod? paymentMethod;
   final DateTime dueDate;
   final DateTime createdAt;
+  final Map<String, DateTime> paidByMonth;
 
   Expense({
     String? id,
@@ -26,8 +27,23 @@ class Expense {
     this.paymentMethod,
     required this.dueDate,
     DateTime? createdAt,
+    Map<String, DateTime>? paidByMonth,
   }) : id = id ?? Uuid().v4(),
-       createdAt = createdAt ?? DateTime.now();
+       createdAt = createdAt ?? DateTime.now(),
+       paidByMonth = paidByMonth ?? {};
+
+  static String _monthKey(DateTime m) =>
+      '${m.year}-${m.month.toString().padLeft(2, '0')}';
+
+  bool isPaidForMonth(DateTime month) {
+    final key = recurrenceType == RecurrenceType.once ? 'once' : _monthKey(month);
+    return paidByMonth.containsKey(key);
+  }
+
+  DateTime? paidDateForMonth(DateTime month) {
+    final key = recurrenceType == RecurrenceType.once ? 'once' : _monthKey(month);
+    return paidByMonth[key];
+  }
 
   // ------------------------
   // Serialization
@@ -44,6 +60,7 @@ class Expense {
       'paymentMethod': paymentMethod?.name,
       'dueDate': dueDate.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
+      'paidByMonth': paidByMonth.map((k, v) => MapEntry(k, v.toIso8601String())),
     };
   }
 
@@ -63,6 +80,9 @@ class Expense {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
+      paidByMonth: (json['paidByMonth'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, DateTime.parse(v as String))) ??
+          {},
     );
   }
 
@@ -92,6 +112,7 @@ class Expense {
     PaymentMethod? paymentMethod,
     DateTime? dueDate,
     DateTime? createdAt,
+    Map<String, DateTime>? paidByMonth,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -104,6 +125,7 @@ class Expense {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       dueDate: dueDate ?? this.dueDate,
       createdAt: createdAt ?? this.createdAt,
+      paidByMonth: paidByMonth ?? Map.of(this.paidByMonth),
     );
   }
 

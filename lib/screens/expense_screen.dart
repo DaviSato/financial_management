@@ -10,7 +10,7 @@ import '../widgets/expense_form.dart';
 import '../widgets/logout_action.dart';
 import '../widgets/month_selector.dart';
 
-enum _SortOption { dateDesc, dateAsc, amountDesc, amountAsc }
+enum _SortOption { dateDesc, dateAsc, amountDesc, amountAsc, paidLast, categoryAz }
 
 class ExpenseScreen extends StatefulWidget {
   const ExpenseScreen({super.key});
@@ -132,6 +132,15 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     return b.amount.compareTo(a.amount);
                   case _SortOption.amountAsc:
                     return a.amount.compareTo(b.amount);
+                  case _SortOption.paidLast:
+                    final aPaid = a.isPaidForMonth(_selectedMonth) ? 1 : 0;
+                    final bPaid = b.isPaidForMonth(_selectedMonth) ? 1 : 0;
+                    if (aPaid != bPaid) return aPaid - bPaid;
+                    return b.dueDate.compareTo(a.dueDate);
+                  case _SortOption.categoryAz:
+                    final cmp = a.category.compareTo(b.category);
+                    if (cmp != 0) return cmp;
+                    return b.dueDate.compareTo(a.dueDate);
                 }
               });
 
@@ -169,12 +178,19 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                           final color =
                               category?.color ?? AppTheme.expenseColor;
 
+                          final isPaid = expense.isPaidForMonth(_selectedMonth);
+                          final paidDate = expense.paidDateForMonth(_selectedMonth);
                           return _ExpenseCard(
                             title: expense.title,
                             amount: expense.amount,
                             category: expense.category,
                             dueDate: expense.dueDate,
                             color: color,
+                            isPaid: isPaid,
+                            paidDate: paidDate,
+                            onTogglePaid: () => context
+                                .read<AppState>()
+                                .toggleExpensePaid(expense.id, _selectedMonth),
                             onEdit: () => _openForm(context, expense: expense),
                             onDelete: () => _confirmDelete(
                               context,
@@ -333,8 +349,11 @@ class _ExpenseCard extends StatelessWidget {
     required this.category,
     required this.dueDate,
     required this.color,
+    required this.isPaid,
+    required this.onTogglePaid,
     required this.onEdit,
     required this.onDelete,
+    this.paidDate,
   });
 
   final String title;
@@ -342,145 +361,189 @@ class _ExpenseCard extends StatelessWidget {
   final String category;
   final DateTime dueDate;
   final Color color;
+  final bool isPaid;
+  final DateTime? paidDate;
+  final VoidCallback onTogglePaid;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-        child: Row(
-          children: [
-            // Color indicator
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
+    final dimmed = isPaid ? 0.4 : 1.0;
+
+    return Opacity(
+      opacity: isPaid ? 0.65 : 1.0,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+          child: Row(
+            children: [
+              // Color indicator
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: isPaid ? 0.06 : 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: isPaid
+                      ? Icon(Icons.check_circle_rounded,
+                          size: 20, color: AppTheme.incomColor.withValues(alpha: 0.8))
+                      : Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                 ),
               ),
-            ),
-            const SizedBox(width: 14),
+              const SizedBox(width: 14),
 
-            // Title + category pill
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Title + category pill
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: dimmed),
+                        decoration: isPaid ? TextDecoration.lineThrough : null,
+                        decorationColor: Colors.white.withValues(alpha: 0.4),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (category.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: isPaid ? 0.05 : 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: color.withValues(alpha: dimmed),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (isPaid && paidDate != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Pago em ${DateFormat('dd/MM/yy', 'pt_BR').format(paidDate!)}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.incomColor.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Amount + due date
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
+                    CurrencyFormatter.format(amount),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: Colors.white,
+                      color: Colors.white.withValues(alpha: dimmed),
+                      letterSpacing: -0.3,
+                      decoration: isPaid ? TextDecoration.lineThrough : null,
+                      decorationColor: Colors.white.withValues(alpha: 0.4),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (category.isNotEmpty) ...[
-                    const SizedBox(height: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
+                  const SizedBox(height: 3),
+                  Text(
+                    DateFormat('dd/MM/yy', 'pt_BR').format(dueDate),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: const Color(0xFF6E6E78).withValues(alpha: dimmed),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Menu
+              SizedBox(
+                width: 32,
+                child: PopupMenuButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 18,
+                  icon: const Icon(
+                    Icons.more_vert,
+                    size: 18,
+                    color: Color(0xFF4E4E58),
+                  ),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      onTap: onTogglePaid,
+                      child: Row(
+                        children: [
+                          Icon(
+                            isPaid
+                                ? Icons.radio_button_unchecked
+                                : Icons.check_circle_outline,
+                            size: 16,
+                            color: AppTheme.incomColor,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            isPaid ? 'Desmarcar pagamento' : 'Marcar como pago',
+                            style: const TextStyle(color: AppTheme.incomColor),
+                          ),
+                        ],
                       ),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
+                    ),
+                    PopupMenuItem(
+                      onTap: onEdit,
+                      child: const Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 16),
+                          SizedBox(width: 10),
+                          Text('Editar'),
+                        ],
                       ),
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: color,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    ),
+                    PopupMenuItem(
+                      onTap: onDelete,
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline,
+                            size: 16,
+                            color: AppTheme.expenseColor,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Excluir',
+                            style: TextStyle(color: AppTheme.expenseColor),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-
-            // Amount + date
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  CurrencyFormatter.format(amount),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: Colors.white,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  DateFormat('dd/MM/yy', 'pt_BR').format(dueDate),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF6E6E78),
-                  ),
-                ),
-              ],
-            ),
-
-            // Menu
-            SizedBox(
-              width: 32,
-              child: PopupMenuButton(
-                padding: EdgeInsets.zero,
-                iconSize: 18,
-                icon: const Icon(
-                  Icons.more_vert,
-                  size: 18,
-                  color: Color(0xFF4E4E58),
-                ),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    onTap: onEdit,
-                    child: const Row(
-                      children: [
-                        Icon(Icons.edit_outlined, size: 16),
-                        SizedBox(width: 10),
-                        Text('Editar'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    onTap: onDelete,
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.delete_outline,
-                          size: 16,
-                          color: AppTheme.expenseColor,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          'Excluir',
-                          style: TextStyle(color: AppTheme.expenseColor),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -497,12 +560,10 @@ class _SortButton extends StatelessWidget {
   static const _items = [
     (_SortOption.dateDesc, Icons.history_rounded, 'Mais recente primeiro'),
     (_SortOption.dateAsc, Icons.update_rounded, 'Mais antigo primeiro'),
-    (
-      _SortOption.amountDesc,
-      Icons.trending_down_rounded,
-      'Maior valor primeiro',
-    ),
+    (_SortOption.amountDesc, Icons.trending_down_rounded, 'Maior valor primeiro'),
     (_SortOption.amountAsc, Icons.trending_up_rounded, 'Menor valor primeiro'),
+    (_SortOption.paidLast, Icons.check_circle_outline_rounded, 'Não pagos primeiro'),
+    (_SortOption.categoryAz, Icons.label_outline_rounded, 'Categoria A→Z'),
   ];
 
   bool get _isDefault => selected == _SortOption.dateDesc;
