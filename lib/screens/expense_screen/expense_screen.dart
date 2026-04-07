@@ -5,7 +5,8 @@ import 'package:financial_management/screens/expense_screen/widgets/sort_button.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/app_state.dart';
+import '../../providers/category_state.dart';
+import '../../providers/expense_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/expense_form.dart';
 import '../../widgets/logout_action.dart';
@@ -46,8 +47,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         builder: (_) => ExpenseFormDialog(
           expense: expense,
           onSave: (e) => expense == null
-              ? context.read<AppState>().addExpense(e)
-              : context.read<AppState>().updateExpense(e),
+              ? context.read<ExpenseState>().addExpense(e)
+              : context.read<ExpenseState>().updateExpense(e),
         ),
       ),
     );
@@ -107,7 +108,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     minimumSize: const Size(0, 42),
                   ),
                   onPressed: () {
-                    context.read<AppState>().deleteExpense(id);
+                    context.read<ExpenseState>().deleteExpense(id);
                     Navigator.pop(dialogContext);
                   },
                   child: const Text('Excluir'),
@@ -154,9 +155,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         icon: const Icon(Icons.add, size: 20),
         label: const Text('Novo Gasto'),
       ),
-      body: Consumer<AppState>(
-        builder: (context, appState, _) {
-          final monthExpenses = appState.getExpensesListForMonth(
+      body: Consumer2<ExpenseState, CategoryState>(
+        builder: (context, expenseState, categoryState, _) {
+          final monthExpenses = expenseState.getExpensesListForMonth(
             _selectedMonth,
           );
           final filtered =
@@ -189,7 +190,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             children: [
               // ── Filters ──────────────────────────────────────
               FilterBar(
-                categories: appState.categories,
+                categories: categoryState.categories,
                 selectedCategory: _selectedCategory,
                 onCategorySelected: (name) =>
                     setState(() => _selectedCategory = name),
@@ -213,7 +214,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {
                           final expense = filtered[index];
-                          final category = appState.categories
+                          final category = categoryState.categories
                               .where((c) => c.name == expense.category)
                               .firstOrNull;
                           final color =
@@ -228,7 +229,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                           int? periodIndex;
                           int? totalPeriods;
                           if (expense.durationMonths != null && expense.durationMonths! > 1) {
-                            final original = appState.expenses
+                            final original = expenseState.expenses
                                 .where((e) => e.id == expense.id)
                                 .firstOrNull;
                             if (original != null) {
@@ -252,10 +253,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             periodIndex: periodIndex,
                             totalPeriods: totalPeriods,
                             onTogglePaid: () => context
-                                .read<AppState>()
+                                .read<ExpenseState>()
                                 .toggleExpensePaid(expense.id, _selectedMonth),
                             onToggleNotify: () => context
-                                .read<AppState>()
+                                .read<ExpenseState>()
                                 .toggleNotifyOnDue(expense.id),
                             onEdit: () => _openForm(context, expense: expense),
                             onDelete: () => _confirmDelete(

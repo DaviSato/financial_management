@@ -8,7 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/category.dart';
-import '../../providers/app_state.dart';
+import '../../providers/category_state.dart';
+import '../../providers/expense_state.dart';
+import '../../providers/income_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/logout_action.dart';
 import '../../widgets/month_selector.dart';
@@ -66,12 +68,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
-      body: Consumer<AppState>(
-        builder: (context, appState, _) {
-          final income = appState.getIncomeForMonth(_selectedMonth);
-          final expenses = appState.getExpensesForMonth(_selectedMonth);
+      body: Consumer2<ExpenseState, IncomeState>(
+        builder: (context, expenseState, incomeState, _) {
+          final categories = context.watch<CategoryState>().categories;
+          final income = incomeState.getIncomeForMonth(_selectedMonth);
+          final expenses = expenseState.getExpensesForMonth(_selectedMonth);
           final balance = income - expenses;
-          final expensesByCategory = appState.getExpensesByCategoryForMonth(
+          final expensesByCategory = expenseState.getExpensesByCategoryForMonth(
             _selectedMonth,
           );
           final raw = DateFormat('MMMM yyyy', 'pt_BR').format(_selectedMonth);
@@ -100,7 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     expenses: expenses,
                     balance: balance,
                     expensesByCategory: expensesByCategory,
-                    categories: appState.categories,
+                    categories: categories,
                     colorForCategory: _colorForCategory,
                   ),
                   const SizedBox(height: 24),
@@ -112,7 +115,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 16),
                   CategoryBreakdown(
                     expensesByCategory: expensesByCategory,
-                    categories: appState.categories,
+                    categories: categories,
                     colorForCategory: _colorForCategory,
                   ),
                 ] else if (income == 0 && expenses == 0)

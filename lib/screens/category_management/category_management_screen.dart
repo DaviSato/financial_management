@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/category.dart';
-import '../../providers/app_state.dart';
+import '../../providers/category_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/category_form_dialog.dart';
 
@@ -17,7 +17,7 @@ class CategoryManagementScreen extends StatelessWidget {
       builder: (dialogContext) => DeleteCategoryDialog(
         category: category,
         onConfirm: () {
-          context.read<AppState>().deleteCustomCategory(category.id);
+          context.read<CategoryState>().deleteCustomCategory(category.id);
           Navigator.pop(dialogContext);
         },
         onCancel: () => Navigator.pop(dialogContext),
@@ -34,7 +34,7 @@ class CategoryManagementScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('Nova Categoria'),
       ),
-      body: Consumer<AppState>(
+      body: Consumer<CategoryState>(
         builder: (context, appState, _) {
           if (appState.categories.isEmpty) {
             return _buildEmptyState(context);

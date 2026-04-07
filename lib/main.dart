@@ -6,7 +6,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
-import 'providers/app_state.dart';
+import 'providers/category_state.dart';
+import 'providers/expense_state.dart';
+import 'providers/income_state.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/expense_screen/expense_screen.dart';
 import 'screens/income_screen.dart';
@@ -50,18 +52,47 @@ class MainApp extends StatelessWidget {
 
   const MainApp({super.key, this.firestoreService});
 
+  Future<void> _syncFromCloud(
+    ExpenseState expenseState,
+    IncomeState incomeState,
+    CategoryState categoryState,
+    FirestoreService firestoreService,
+  ) async {
+    await firestoreService.syncFromFirestore(StorageService());
+    await Future.wait([
+      expenseState.load(),
+      incomeState.load(),
+      categoryState.load(),
+    ]);
+  }
+
+  Widget _buildProviders({required Widget child}) {
+    final expenseState = ExpenseState(firestoreService)..load();
+    final incomeState = IncomeState(firestoreService)..load();
+    final categoryState = CategoryState(expenseState, firestoreService)..load();
+
+    if (firestoreService != null) {
+      _syncFromCloud(expenseState, incomeState, categoryState, firestoreService!);
+    }
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<ExpenseState>.value(value: expenseState),
+        ChangeNotifierProvider<IncomeState>.value(value: incomeState),
+        ChangeNotifierProvider<CategoryState>.value(value: categoryState),
+      ],
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // No Firebase: provider above MaterialApp, go straight to MainScreen
     if (firestoreService == null) {
-      return ChangeNotifierProvider(
-        create: (_) => AppState(),
+      return _buildProviders(
         child: _buildMaterialApp(home: const MainScreen()),
       );
     }
 
-    // Firebase configured: watch auth state outside MaterialApp so the
-    // ChangeNotifierProvider always sits above the Navigator
     return StreamBuilder<User?>(
       stream: AuthService().authStateChanges,
       builder: (context, snapshot) {
@@ -77,8 +108,7 @@ class MainApp extends StatelessWidget {
           return _buildMaterialApp(home: const LoginScreen());
         }
 
-        return ChangeNotifierProvider(
-          create: (_) => AppState(firestoreService)..syncFromCloud(),
+        return _buildProviders(
           child: _buildMaterialApp(home: const MainScreen()),
         );
       },

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/app_state.dart';
+import '../providers/income_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/income_form.dart';
@@ -22,7 +22,7 @@ class IncomeScreen extends StatelessWidget {
         icon: const Icon(Icons.add, size: 20),
         label: const Text('Novo Rendimento'),
       ),
-      body: Consumer<AppState>(
+      body: Consumer<IncomeState>(
         builder: (context, appState, _) {
           final incomes = [...appState.incomes]
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -75,7 +75,7 @@ class IncomeScreen extends StatelessWidget {
                       builder: (_) => IncomeFormDialog(
                         income: income,
                         onSave: (updated) =>
-                            context.read<AppState>().updateIncome(updated),
+                            context.read<IncomeState>().updateIncome(updated),
                       ),
                     ),
                   );
@@ -95,7 +95,7 @@ class IncomeScreen extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (_) => IncomeFormDialog(
-          onSave: (income) => context.read<AppState>().addIncome(income),
+          onSave: (income) => context.read<IncomeState>().addIncome(income),
         ),
       ),
     );
@@ -153,7 +153,7 @@ class IncomeScreen extends StatelessWidget {
                     minimumSize: const Size(0, 42),
                   ),
                   onPressed: () {
-                    context.read<AppState>().deleteIncome(id);
+                    context.read<IncomeState>().deleteIncome(id);
                     Navigator.pop(dialogContext);
                   },
                   child: const Text('Excluir'),

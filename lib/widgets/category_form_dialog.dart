@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/category.dart';
-import '../providers/app_state.dart';
+import '../providers/category_state.dart';
 
 class CategoryFormDialog extends StatefulWidget {
   const CategoryFormDialog._({this.category});
@@ -86,7 +86,7 @@ class _CategoryFormDialogState extends State<CategoryFormDialog> {
       return;
     }
 
-    final appState = context.read<AppState>();
+    final appState = context.read<CategoryState>();
     Category saved;
 
     if (widget.category == null) {

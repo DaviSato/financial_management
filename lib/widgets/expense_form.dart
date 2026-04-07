@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/expense.dart';
 import '../models/payment_method.dart';
 import '../models/recurrence.dart';
-import '../providers/app_state.dart';
+import '../providers/category_state.dart';
 import '../utils/brazilian_currency_input_formatter.dart';
 import '../utils/currency_formatter.dart';
 import 'category_form_dialog.dart';
@@ -57,7 +57,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_selectedCategory == null) {
-      final categories = context.read<AppState>().categories;
+      final categories = context.read<CategoryState>().categories;
       if (categories.isNotEmpty) _selectedCategory = categories.first.name;
     }
   }
@@ -157,10 +157,10 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Consumer<AppState>(
-        builder: (context, appState, _) {
-          if (_selectedCategory == null && appState.categories.isNotEmpty) {
-            _selectedCategory = appState.categories.first.name;
+      body: Consumer<CategoryState>(
+        builder: (context, categoryState, _) {
+          if (_selectedCategory == null && categoryState.categories.isNotEmpty) {
+            _selectedCategory = categoryState.categories.first.name;
           }
 
           return SingleChildScrollView(
@@ -198,12 +198,12 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                   DropdownButtonFormField<String>(
                     key: ValueKey(_selectedCategory),
                     initialValue:
-                        appState.categories.any(
+                        categoryState.categories.any(
                           (c) => c.name == _selectedCategory,
                         )
                         ? _selectedCategory
                         : null,
-                    items: appState.categories.map((category) {
+                    items: categoryState.categories.map((category) {
                       return DropdownMenuItem(
                         value: category.name,
                         child: Row(
