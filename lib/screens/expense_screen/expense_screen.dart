@@ -223,6 +223,23 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                           final paidDate = expense.paidDateForMonth(
                             _selectedMonth,
                           );
+
+                          // Period badge: find original to compute index
+                          int? periodIndex;
+                          int? totalPeriods;
+                          if (expense.durationMonths != null && expense.durationMonths! > 1) {
+                            final original = appState.expenses
+                                .where((e) => e.id == expense.id)
+                                .firstOrNull;
+                            if (original != null) {
+                              final monthDiff =
+                                  (expense.dueDate.year - original.dueDate.year) * 12 +
+                                  (expense.dueDate.month - original.dueDate.month);
+                              periodIndex = monthDiff + 1;
+                              totalPeriods = expense.durationMonths;
+                            }
+                          }
+
                           return ExpenseCard(
                             title: expense.title,
                             amount: expense.amount,
@@ -232,6 +249,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             isPaid: isPaid,
                             paidDate: paidDate,
                             notifyOnDue: expense.notifyOnDue,
+                            periodIndex: periodIndex,
+                            totalPeriods: totalPeriods,
                             onTogglePaid: () => context
                                 .read<AppState>()
                                 .toggleExpensePaid(expense.id, _selectedMonth),

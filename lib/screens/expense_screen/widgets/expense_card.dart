@@ -18,6 +18,8 @@ class ExpenseCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     this.paidDate,
+    this.periodIndex,
+    this.totalPeriods,
   });
 
   final String title;
@@ -32,6 +34,8 @@ class ExpenseCard extends StatelessWidget {
   final VoidCallback onToggleNotify;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final int? periodIndex;
+  final int? totalPeriods;
 
   bool get _isOverdue {
     if (isPaid) return false;
@@ -104,23 +108,48 @@ class ExpenseCard extends StatelessWidget {
                     ),
                     if (category.isNotEmpty) ...[
                       const SizedBox(height: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: isPaid ? 0.05 : 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          category,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: color.withValues(alpha: dimmed),
-                            fontWeight: FontWeight.w500,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: isPaid ? 0.05 : 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              category,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: color.withValues(alpha: dimmed),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (periodIndex != null && totalPeriods != null) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: isPaid ? 0.04 : 0.07),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '$periodIndex/$totalPeriods',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white.withValues(alpha: isPaid ? 0.4 : 0.6),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                     if (isPaid && paidDate != null) ...[
