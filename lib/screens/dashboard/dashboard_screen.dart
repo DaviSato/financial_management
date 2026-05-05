@@ -40,6 +40,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
   });
 
+  void _goToToday() {
+    final now = DateTime.now();
+    setState(() => _selectedMonth = DateTime(now.year, now.month, 1));
+  }
+
+  void _pickMonth(BuildContext context) async {
+    final picked = await MonthSelector.showPicker(context, _selectedMonth);
+    if (picked != null) {
+      setState(() => _selectedMonth = DateTime(picked.year, picked.month, 1));
+    }
+  }
+
   Color _colorForCategory(String name, List<Category> categories, int index) {
     final match = categories.where((c) => c.name == name).firstOrNull;
     return match?.color ?? AppTheme.chartColors()[index % 8];
@@ -62,6 +74,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   selectedMonth: _selectedMonth,
                   onPrevious: _prevMonth,
                   onNext: _nextMonth,
+                  onGoToToday: _goToToday,
+                  onMonthTap: () => _pickMonth(context),
                 ),
               ],
             ),

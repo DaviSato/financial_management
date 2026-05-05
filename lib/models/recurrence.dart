@@ -1,1 +1,1 @@
-enum RecurrenceType { once, monthly, period }
+enum RecurrenceType { once, monthly, installment, period }

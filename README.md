@@ -32,6 +32,7 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 - **Marcar como pago** por mês — gastos recorrentes são rastreados individualmente
 - **Notificação de vencimento** — ative por gasto para receber um aviso no dia que vencer
 - Indicador visual de vencimento em atraso (ícone de alerta)
+- **Indicador de parcela** — gastos por período exibem a parcela atual (ex: `2/6`)
 - Ordenação por data, valor, pagamento ou categoria
 - Filtro por categoria e por mês
 
@@ -65,8 +66,8 @@ A integração com Firebase adiciona:
 ### Como funciona a sincronização
 
 ```
-SharedPreferences  ←→  AppState  →  Firestore (somente se .env configurado)
-   (sempre ativo)                      (opcional, fire-and-forget)
+SharedPreferences  ←→  ExpenseState / IncomeState / CategoryState  →  Firestore (somente se .env configurado)
+   (sempre ativo)                                                         (opcional, fire-and-forget)
 ```
 
 - O armazenamento local é sempre o primário — operações locais **nunca falham** por causa do Firestore
@@ -158,13 +159,15 @@ flutter run
 
 ```
 lib/
-├── main.dart                     # Inicialização, Firebase opcional, roteamento
+├── main.dart                     # Inicialização, Firebase opcional, MultiProvider
 ├── models/                       # Expense, Income, Category, enums
 ├── providers/
-│   └── app_state.dart            # Estado global, CRUD, sync
+│   ├── expense_state.dart        # CRUD de gastos, computed helpers por mês
+│   ├── income_state.dart         # CRUD de rendimentos, computed helpers por mês
+│   └── category_state.dart       # CRUD de categorias, coordena renomeação/exclusão com ExpenseState
 ├── screens/
 │   ├── dashboard/
-│   │   ├── dashboard_screen.dart
+│   │   ├── dashboard_screen.dart # Lê ExpenseState + IncomeState + CategoryState
 │   │   └── widgets/              # category_breakdown, hero_card, income_expense_chart, ...
 │   ├── expense_screen/
 │   │   ├── expense_screen.dart

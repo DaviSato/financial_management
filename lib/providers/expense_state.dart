@@ -132,6 +132,18 @@ class ExpenseState extends ChangeNotifier {
           }
           current = DateTime(current.year, current.month + 1, day);
         }
+      } else if (expense.recurrenceType == RecurrenceType.installment) {
+        if (expense.durationMonths != null && expense.durationMonths! > 0) {
+          final installmentAmount = expense.amount / expense.durationMonths!;
+          for (int i = 0; i < expense.durationMonths!; i++) {
+            final monthDate = DateTime(
+              expense.dueDate.year,
+              expense.dueDate.month + i,
+              expense.dueDate.day,
+            );
+            expanded.add(expense.copyWith(dueDate: monthDate, amount: installmentAmount));
+          }
+        }
       } else if (expense.recurrenceType == RecurrenceType.period) {
         if (expense.durationMonths != null && expense.durationMonths! > 0) {
           for (int i = 0; i < expense.durationMonths!; i++) {

@@ -71,6 +71,10 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
     super.dispose();
   }
 
+  void _onAmountChanged(String _) {
+    if (_recurrenceType == RecurrenceType.installment) setState(() {});
+  }
+
   void _selectDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -116,8 +120,10 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
       _showError('Informe um valor válido');
       return;
     }
-    if (_recurrenceType == RecurrenceType.period && _durationMonths <= 0) {
-      _showError('Defina a duração em meses');
+    if ((_recurrenceType == RecurrenceType.period ||
+            _recurrenceType == RecurrenceType.installment) &&
+        _durationMonths <= 0) {
+      _showError('Defina a duração');
       return;
     }
 
@@ -134,7 +140,8 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
         dueDate: dueDate,
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
         recurrenceType: _recurrenceType,
-        durationMonths: _recurrenceType == RecurrenceType.period
+        durationMonths: (_recurrenceType == RecurrenceType.period ||
+                _recurrenceType == RecurrenceType.installment)
             ? _durationMonths
             : null,
         paymentMethod: _paymentMethod,
@@ -188,10 +195,16 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                       decimal: true,
                     ),
                     inputFormatters: [BrazilianCurrencyInputFormatter()],
-                    decoration: const InputDecoration(
-                      labelText: 'Valor',
+                    onChanged: _onAmountChanged,
+                    decoration: InputDecoration(
+                      labelText: _recurrenceType == RecurrenceType.installment
+                          ? 'Valor total'
+                          : _recurrenceType == RecurrenceType.period ||
+                                  _recurrenceType == RecurrenceType.monthly
+                              ? 'Valor mensal'
+                              : 'Valor',
                       hintText: 'R\$ 0,00',
-                      prefixIcon: Icon(Icons.attach_money_outlined),
+                      prefixIcon: const Icon(Icons.attach_money_outlined),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -318,11 +331,15 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                     items: const [
                       DropdownMenuItem(
                         value: RecurrenceType.once,
-                        child: Text('Gasto Único'),
+                        child: Text('Único'),
                       ),
                       DropdownMenuItem(
                         value: RecurrenceType.monthly,
-                        child: Text('Mensal (Recorrente)'),
+                        child: Text('Recorrente'),
+                      ),
+                      DropdownMenuItem(
+                        value: RecurrenceType.installment,
+                        child: Text('Parcelado'),
                       ),
                       DropdownMenuItem(
                         value: RecurrenceType.period,
@@ -334,7 +351,8 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                       prefixIcon: Icon(Icons.repeat_outlined),
                     ),
                   ),
-                  if (_recurrenceType == RecurrenceType.period) ...[
+                  if (_recurrenceType == RecurrenceType.installment ||
+                      _recurrenceType == RecurrenceType.period) ...[
                     const SizedBox(height: 12),
                     TextField(
                       controller: _durationController,
@@ -342,12 +360,34 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                       onChanged: (value) => setState(
                         () => _durationMonths = int.tryParse(value) ?? 1,
                       ),
-                      decoration: const InputDecoration(
-                        labelText: 'Duração (meses)',
-                        hintText: 'Ex: 6',
-                        prefixIcon: Icon(Icons.hourglass_bottom_outlined),
+                      decoration: InputDecoration(
+                        labelText: _recurrenceType == RecurrenceType.installment
+                            ? 'Número de parcelas'
+                            : 'Duração (meses)',
+                        hintText: _recurrenceType == RecurrenceType.installment
+                            ? 'Ex: 12'
+                            : 'Ex: 6',
+                        prefixIcon: const Icon(Icons.hourglass_bottom_outlined),
                       ),
                     ),
+                    if (_recurrenceType == RecurrenceType.installment) ...[
+                      const SizedBox(height: 8),
+                      Builder(
+                        builder: (ctx) {
+                          final total = CurrencyFormatter.parse(_amountController.text);
+                          if (total != null && total > 0 && _durationMonths > 0) {
+                            return Text(
+                              'Cada parcela: ${CurrencyFormatter.format(total / _durationMonths)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(ctx).colorScheme.primary,
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ],
                   ],
 
                   // ── Observações ──────────────────────────────

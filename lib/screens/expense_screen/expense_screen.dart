@@ -5,6 +5,7 @@ import 'package:financial_management/screens/expense_screen/widgets/sort_button.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/recurrence.dart';
 import '../../providers/category_state.dart';
 import '../../providers/expense_state.dart';
 import '../../theme/app_theme.dart';
@@ -39,6 +40,18 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   void _nextMonth() => setState(() {
     _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
   });
+
+  void _goToToday() {
+    final now = DateTime.now();
+    setState(() => _selectedMonth = DateTime(now.year, now.month, 1));
+  }
+
+  void _pickMonth(BuildContext context) async {
+    final picked = await MonthSelector.showPicker(context, _selectedMonth);
+    if (picked != null) {
+      setState(() => _selectedMonth = DateTime(picked.year, picked.month, 1));
+    }
+  }
 
   void _openForm(BuildContext context, {dynamic expense}) {
     Navigator.push(
@@ -126,13 +139,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gastos'),
-        actions: [
-          SortButton(
-            selected: sortOption,
-            onSelected: (opt) => setState(() => sortOption = opt),
-          ),
-          const LogoutAction(),
-        ],
+        actions: [const LogoutAction()],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(
@@ -144,6 +151,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   selectedMonth: _selectedMonth,
                   onPrevious: _prevMonth,
                   onNext: _nextMonth,
+                  onGoToToday: _goToToday,
+                  onMonthTap: () => _pickMonth(context),
                 ),
               ],
             ),
@@ -202,7 +211,21 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 ),
               ),
 
-              // ── List ─────────────────────────────────────────
+              // ── Sort + List ──────────────────────────────────
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 2, 8, 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    SortButton(
+                      selected: sortOption,
+                      onSelected: (opt) => setState(() => sortOption = opt),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
               Expanded(
                 child: filtered.isEmpty
                     ? EmptyState(
@@ -252,13 +275,19 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             notifyOnDue: expense.notifyOnDue,
                             periodIndex: periodIndex,
                             totalPeriods: totalPeriods,
+                            isInstallment: expense.recurrenceType == RecurrenceType.installment,
                             onTogglePaid: () => context
                                 .read<ExpenseState>()
                                 .toggleExpensePaid(expense.id, _selectedMonth),
                             onToggleNotify: () => context
                                 .read<ExpenseState>()
                                 .toggleNotifyOnDue(expense.id),
-                            onEdit: () => _openForm(context, expense: expense),
+                            onEdit: () {
+                              final original = expenseState.expenses
+                                  .where((e) => e.id == expense.id)
+                                  .firstOrNull;
+                              _openForm(context, expense: original ?? expense);
+                            },
                             onDelete: () => _confirmDelete(
                               context,
                               expense.id,

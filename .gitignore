@@ -1,6 +1,12 @@
 # Environment / secrets
 .env
 
+# Claude Code
+.agents/
+.claude/skills/
+.claude/settings.local.json
+skills-lock.json
+
 # Miscellaneous
 *.class
 *.log
