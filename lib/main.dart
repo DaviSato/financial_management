@@ -11,7 +11,7 @@ import 'providers/expense_state.dart';
 import 'providers/income_state.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/expense_screen/expense_screen.dart';
-import 'screens/income_screen.dart';
+import 'screens/income_screen/income_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_config.dart';

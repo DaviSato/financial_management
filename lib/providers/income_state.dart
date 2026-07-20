@@ -4,6 +4,7 @@ import '../models/income.dart';
 import '../models/recurrence.dart';
 import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
+import '../utils/date_utils.dart';
 
 class IncomeState extends ChangeNotifier {
   final StorageService _storageService = StorageService();
@@ -50,6 +51,8 @@ class IncomeState extends ChangeNotifier {
 
   // ── Computed ─────────────────────────────────────────────────────────────────
 
+  /// Expande os rendimentos recorrentes em ocorrências concretas dentro de
+  /// [startDate] (inclusivo) e [endDate] (exclusivo).
   List<Income> _expandIncomes(
     List<Income> incomes, {
     DateTime? startDate,
@@ -60,28 +63,32 @@ class IncomeState extends ChangeNotifier {
     final start = startDate ?? DateTime(now.year, now.month, 1);
     final end = endDate ?? DateTime(now.year + 1, now.month, 1);
 
+    bool inRange(DateTime date) => !date.isBefore(start) && date.isBefore(end);
+
     for (final income in incomes) {
-      if (income.recurrenceType == RecurrenceType.once) {
-        expanded.add(income);
-      } else if (income.recurrenceType == RecurrenceType.monthly) {
-        var current = DateTime(income.createdAt.year, income.createdAt.month, 1);
+      if (income.recurrenceType == RecurrenceType.monthly) {
+        // Recorrente: repete a cada N meses a partir da data de recebimento.
+        final step = income.effectiveIntervalMonths;
+        var offset = 0;
+        var current = income.receiveDate;
         while (current.isBefore(end)) {
-          if (current.isAfter(start) || current.isAtSameMomentAs(start)) {
-            expanded.add(income.copyWith(createdAt: current));
+          if (inRange(current)) {
+            expanded.add(income.copyWith(receiveDate: current));
           }
-          current = DateTime(current.year, current.month + 1, 1);
+          offset += step;
+          current = addMonths(income.receiveDate, offset);
         }
       } else if (income.recurrenceType == RecurrenceType.period) {
-        if (income.durationMonths != null && income.durationMonths! > 0) {
-          for (int i = 0; i < income.durationMonths!; i++) {
-            final monthDate = DateTime(
-              income.createdAt.year,
-              income.createdAt.month + i,
-              income.createdAt.day,
-            );
-            expanded.add(income.copyWith(createdAt: monthDate));
+        final duration = income.durationMonths ?? 0;
+        for (var i = 0; i < duration; i++) {
+          final date = addMonths(income.receiveDate, i);
+          if (inRange(date)) {
+            expanded.add(income.copyWith(receiveDate: date));
           }
         }
+      } else {
+        // Único (e qualquer tipo não previsto): uma ocorrência na data.
+        if (inRange(income.receiveDate)) expanded.add(income);
       }
     }
     return expanded;
@@ -92,20 +99,16 @@ class IncomeState extends ChangeNotifier {
     return expanded.fold(0.0, (sum, i) => sum + i.amount);
   }
 
-  double getCurrentMonthIncome() {
-    final now = DateTime.now();
-    final expanded = _expandIncomes(_incomes);
-    return expanded
-        .where((i) => i.createdAt.month == now.month && i.createdAt.year == now.year)
-        .fold(0.0, (sum, i) => sum + i.amount);
-  }
+  double getCurrentMonthIncome() => getIncomeForMonth(DateTime.now());
 
-  double getIncomeForMonth(DateTime month) {
+  double getIncomeForMonth(DateTime month) => getIncomesListForMonth(
+    month,
+  ).fold(0.0, (sum, i) => sum + i.amount);
+
+  /// Ocorrências de rendimento que caem no mês informado.
+  List<Income> getIncomesListForMonth(DateTime month) {
     final start = DateTime(month.year, month.month, 1);
     final end = DateTime(month.year, month.month + 1, 1);
-    final expanded = _expandIncomes(_incomes, startDate: start, endDate: end);
-    return expanded
-        .where((i) => i.createdAt.year == month.year && i.createdAt.month == month.month)
-        .fold(0.0, (sum, i) => sum + i.amount);
+    return _expandIncomes(_incomes, startDate: start, endDate: end);
   }
 }

@@ -20,25 +20,32 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
   late TextEditingController _titleController;
   late TextEditingController _notesController;
   late TextEditingController _durationController;
+  late TextEditingController _intervalController;
 
   late RecurrenceType _recurrenceType;
   late int _durationMonths;
+  late int _intervalMonths;
+  late DateTime _receiveDate;
 
   @override
   void initState() {
     super.initState();
+    final i = widget.income;
     _amountController = TextEditingController(
-      text: widget.income != null
-          ? CurrencyFormatter.format(widget.income!.amount)
-          : '',
+      text: i != null ? CurrencyFormatter.format(i.amount) : '',
     );
-    _titleController = TextEditingController(text: widget.income?.title ?? '');
-    _notesController = TextEditingController(text: widget.income?.notes ?? '');
+    _titleController = TextEditingController(text: i?.title ?? '');
+    _notesController = TextEditingController(text: i?.notes ?? '');
     _durationController = TextEditingController(
-      text: widget.income?.durationMonths?.toString() ?? '1',
+      text: i?.durationMonths?.toString() ?? '1',
     );
-    _recurrenceType = widget.income?.recurrenceType ?? RecurrenceType.once;
-    _durationMonths = widget.income?.durationMonths ?? 1;
+    _intervalController = TextEditingController(
+      text: i?.effectiveIntervalMonths.toString() ?? '1',
+    );
+    _recurrenceType = i?.recurrenceType ?? RecurrenceType.once;
+    _durationMonths = i?.durationMonths ?? 1;
+    _intervalMonths = i?.effectiveIntervalMonths ?? 1;
+    _receiveDate = i?.receiveDate ?? DateTime.now();
   }
 
   @override
@@ -47,7 +54,37 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
     _titleController.dispose();
     _notesController.dispose();
     _durationController.dispose();
+    _intervalController.dispose();
     super.dispose();
+  }
+
+  void _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _receiveDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(DateTime.now().year + 10, 12, 31),
+    );
+    if (picked != null) setState(() => _receiveDate = picked);
+  }
+
+  /// Texto explicando o que o intervalo escolhido significa na prática.
+  String? get _intervalHint {
+    if (_recurrenceType != RecurrenceType.monthly) return null;
+    switch (_intervalMonths) {
+      case 1:
+        return 'Todo mês';
+      case 2:
+        return 'A cada 2 meses (bimestral)';
+      case 3:
+        return 'A cada 3 meses (trimestral)';
+      case 6:
+        return 'A cada 6 meses (semestral)';
+      case 12:
+        return 'Uma vez por ano — ex: 13º, saque-aniversário do FGTS';
+      default:
+        return _intervalMonths > 0 ? 'A cada $_intervalMonths meses' : null;
+    }
   }
 
   void _saveIncome() {
@@ -68,6 +105,10 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
       _showError('Defina a duração em meses');
       return;
     }
+    if (_recurrenceType == RecurrenceType.monthly && _intervalMonths <= 0) {
+      _showError('Defina de quantos em quantos meses o rendimento se repete');
+      return;
+    }
 
     widget.onSave(
       Income(
@@ -79,6 +120,11 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
         durationMonths: _recurrenceType == RecurrenceType.period
             ? _durationMonths
             : null,
+        intervalMonths: _recurrenceType == RecurrenceType.monthly
+            ? _intervalMonths
+            : null,
+        receiveDate: _receiveDate,
+        createdAt: widget.income?.createdAt,
       ),
     );
     Navigator.of(context).pop();
@@ -93,6 +139,8 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.income != null;
+    final isRecurring = _recurrenceType == RecurrenceType.monthly;
+    final isPeriod = _recurrenceType == RecurrenceType.period;
 
     return Scaffold(
       appBar: AppBar(
@@ -108,28 +156,58 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Informações básicas ──────────────────────
+              const _SectionLabel('Informações'),
+              const SizedBox(height: 12),
               TextField(
                 controller: _titleController,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
                   labelText: 'Título',
-                  hintText: 'Ex: Salário, Bônus, Freelance',
+                  hintText: 'Ex: Salário, 13º, Abono salarial',
+                  prefixIcon: Icon(Icons.title_outlined),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
                 inputFormatters: [BrazilianCurrencyInputFormatter()],
-                decoration: const InputDecoration(
-                  labelText: 'Valor',
+                decoration: InputDecoration(
+                  labelText: isRecurring || isPeriod
+                      ? 'Valor por recebimento'
+                      : 'Valor',
                   hintText: 'R\$ 0,00',
+                  prefixIcon: const Icon(Icons.attach_money_outlined),
                 ),
               ),
 
-              const SizedBox(height: 16),
+              // ── Recebimento ──────────────────────────────
+              const SizedBox(height: 24),
+              const _SectionLabel('Recebimento'),
+              const SizedBox(height: 12),
+              TextField(
+                onTap: _selectDate,
+                canRequestFocus: false,
+                showCursor: false,
+                controller: TextEditingController(
+                  text:
+                      '${_receiveDate.day.toString().padLeft(2, '0')}/${_receiveDate.month.toString().padLeft(2, '0')}/${_receiveDate.year}',
+                ),
+                decoration: InputDecoration(
+                  labelText: _recurrenceType == RecurrenceType.once
+                      ? 'Data do recebimento'
+                      : 'Primeiro recebimento',
+                  prefixIcon: const Icon(Icons.date_range_outlined),
+                ),
+              ),
+
+              // ── Recorrência ──────────────────────────────
+              const SizedBox(height: 24),
+              const _SectionLabel('Recorrência'),
+              const SizedBox(height: 12),
               DropdownButtonFormField<RecurrenceType>(
                 initialValue: _recurrenceType,
                 onChanged: (value) => setState(
@@ -138,45 +216,76 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
                 items: const [
                   DropdownMenuItem(
                     value: RecurrenceType.once,
-                    child: Text('Rendimento Único'),
+                    child: Text('Único'),
                   ),
                   DropdownMenuItem(
                     value: RecurrenceType.monthly,
-                    child: Text('Rendimento Mensal (Recorrente)'),
+                    child: Text('Recorrente'),
                   ),
                   DropdownMenuItem(
                     value: RecurrenceType.period,
-                    child: Text('Rendimento por Período'),
+                    child: Text('Por Período'),
                   ),
                 ],
                 decoration: const InputDecoration(
                   labelText: 'Tipo de Rendimento',
+                  prefixIcon: Icon(Icons.repeat_outlined),
                 ),
               ),
-              if (_recurrenceType == RecurrenceType.period) ...[
-                const SizedBox(height: 16),
+              if (isRecurring) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _intervalController,
+                  keyboardType: TextInputType.number,
+                  onChanged: (value) => setState(
+                    () => _intervalMonths = int.tryParse(value) ?? 0,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Repetir a cada (meses)',
+                    hintText: 'Ex: 1 = mensal, 6 = semestral, 12 = anual',
+                    prefixIcon: Icon(Icons.event_repeat_outlined),
+                  ),
+                ),
+                if (_intervalHint != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _intervalHint!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ],
+              if (isPeriod) ...[
+                const SizedBox(height: 12),
                 TextField(
                   controller: _durationController,
                   keyboardType: TextInputType.number,
                   onChanged: (value) => setState(
-                    () => _durationMonths = int.tryParse(value) ?? 1,
+                    () => _durationMonths = int.tryParse(value) ?? 0,
                   ),
                   decoration: const InputDecoration(
                     labelText: 'Duração (meses)',
                     hintText: 'Ex: 6',
+                    prefixIcon: Icon(Icons.hourglass_bottom_outlined),
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
+
+              // ── Observações ──────────────────────────────
+              const SizedBox(height: 24),
+              const _SectionLabel('Observações'),
+              const SizedBox(height: 12),
               TextField(
                 controller: _notesController,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  labelText: 'Observações (opcional)',
                   hintText: 'Adicione observações...',
                 ),
               ),
-              const SizedBox(height: 24),
+
+              const SizedBox(height: 28),
               Row(
                 children: [
                   Expanded(
@@ -194,9 +303,28 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF6E6E78),
+        letterSpacing: 0.8,
       ),
     );
   }
