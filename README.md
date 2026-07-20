@@ -9,6 +9,7 @@
   ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=flat-square&logo=dart)
   ![Firebase](https://img.shields.io/badge/Firebase-opcional-FFCA28?style=flat-square&logo=firebase&logoColor=black)
   ![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey?style=flat-square)
+  ![Importação por notificações](https://img.shields.io/badge/Importa%C3%A7%C3%A3o%20por%20notifica%C3%A7%C3%B5es-somente%20Android-3DDC84?style=flat-square&logo=android&logoColor=white)
 </div>
 
 ---
