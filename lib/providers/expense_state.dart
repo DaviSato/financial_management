@@ -5,6 +5,7 @@ import '../models/recurrence.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
+import '../utils/date_utils.dart';
 
 class ExpenseState extends ChangeNotifier {
   final StorageService _storageService = StorageService();
@@ -124,35 +125,33 @@ class ExpenseState extends ChangeNotifier {
       if (expense.recurrenceType == RecurrenceType.once) {
         expanded.add(expense);
       } else if (expense.recurrenceType == RecurrenceType.monthly) {
-        final day = expense.dueDate.day;
-        var current = DateTime(expense.dueDate.year, expense.dueDate.month, day);
+        // Sempre a partir da data original, para que um vencimento no dia 31
+        // caia em 28/02 e volte para 31/03 — em vez de vazar para o mês seguinte.
+        var offset = 0;
+        var current = expense.dueDate;
         while (current.isBefore(end)) {
           if (!current.isBefore(start)) {
             expanded.add(expense.copyWith(dueDate: current));
           }
-          current = DateTime(current.year, current.month + 1, day);
+          offset++;
+          current = addMonths(expense.dueDate, offset);
         }
       } else if (expense.recurrenceType == RecurrenceType.installment) {
         if (expense.durationMonths != null && expense.durationMonths! > 0) {
           final installmentAmount = expense.amount / expense.durationMonths!;
           for (int i = 0; i < expense.durationMonths!; i++) {
-            final monthDate = DateTime(
-              expense.dueDate.year,
-              expense.dueDate.month + i,
-              expense.dueDate.day,
-            );
-            expanded.add(expense.copyWith(dueDate: monthDate, amount: installmentAmount));
+            expanded.add(expense.copyWith(
+              dueDate: addMonths(expense.dueDate, i),
+              amount: installmentAmount,
+            ));
           }
         }
       } else if (expense.recurrenceType == RecurrenceType.period) {
         if (expense.durationMonths != null && expense.durationMonths! > 0) {
           for (int i = 0; i < expense.durationMonths!; i++) {
-            final monthDate = DateTime(
-              expense.dueDate.year,
-              expense.dueDate.month + i,
-              expense.dueDate.day,
+            expanded.add(
+              expense.copyWith(dueDate: addMonths(expense.dueDate, i)),
             );
-            expanded.add(expense.copyWith(dueDate: monthDate));
           }
         }
       }

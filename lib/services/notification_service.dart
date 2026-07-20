@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/expense.dart';
 import '../models/recurrence.dart';
+import '../utils/date_utils.dart';
 
 class NotificationService {
   NotificationService._();
@@ -154,20 +155,18 @@ class NotificationService {
       if (expense.recurrenceType == RecurrenceType.once) {
         if (_sameDay(expense.dueDate, date)) result.add(expense);
       } else if (expense.recurrenceType == RecurrenceType.monthly) {
-        if (expense.dueDate.day == date.day &&
-            !date.isBefore(
-                DateTime(expense.dueDate.year, expense.dueDate.month, 1))) {
+        // Compara com a ocorrência do próprio mês de [date] para que um
+        // vencimento no dia 31 ainda notifique em 28/02.
+        final monthsAhead = monthsBetween(expense.dueDate, date);
+        if (monthsAhead >= 0 &&
+            _sameDay(addMonths(expense.dueDate, monthsAhead), date)) {
           result.add(expense);
         }
-      } else if (expense.recurrenceType == RecurrenceType.period) {
+      } else if (expense.recurrenceType == RecurrenceType.period ||
+          expense.recurrenceType == RecurrenceType.installment) {
         final months = expense.durationMonths ?? 0;
         for (int i = 0; i < months; i++) {
-          final occurrence = DateTime(
-            expense.dueDate.year,
-            expense.dueDate.month + i,
-            expense.dueDate.day,
-          );
-          if (_sameDay(occurrence, date)) {
+          if (_sameDay(addMonths(expense.dueDate, i), date)) {
             result.add(expense);
             break;
           }
