@@ -17,9 +17,11 @@ import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/expense_screen/expense_screen.dart';
 import 'screens/income_screen/income_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/profile/profile_screen.dart';
 import 'services/auth_service.dart';
 import 'services/auto_import_service.dart';
 import 'services/capture_settings.dart';
+import 'services/cloud_config.dart';
 import 'services/firebase_config.dart';
 import 'services/firestore_service.dart';
 import 'services/notification_capture_service.dart';
@@ -45,9 +47,14 @@ void main() async {
   await NotificationService().init();
   await NotificationService().requestPermissions();
 
+  // Config da nuvem: app (SharedPreferences) sobrepõe o .env. Carregada aqui
+  // para que FirebaseConfig possa lê-la de forma síncrona no boot.
+  await CloudConfig().load();
+
   FirestoreService? firestoreService;
   if (FirebaseConfig.isConfigured) {
     await Firebase.initializeApp(options: FirebaseConfig.options);
+    FirebaseConfig.initialized = true;
     firestoreService = FirestoreService();
   }
 
@@ -146,6 +153,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     DashboardScreen(),
     IncomeScreen(),
     ExpenseScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -259,6 +267,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               icon: Icon(Icons.receipt_long_outlined),
               selectedIcon: Icon(Icons.receipt_long_rounded),
               label: 'Gastos',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Perfil',
             ),
           ],
         ),

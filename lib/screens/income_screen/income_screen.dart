@@ -9,7 +9,6 @@ import '../../providers/income_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/income_form.dart';
-import '../../widgets/logout_action.dart';
 import '../../widgets/month_selector.dart';
 
 class IncomeScreen extends StatefulWidget {
@@ -151,7 +150,6 @@ class _IncomeScreenState extends State<IncomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rendimentos'),
-        actions: const [LogoutAction()],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(

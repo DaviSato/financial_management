@@ -10,7 +10,6 @@ import '../../providers/category_state.dart';
 import '../../providers/expense_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/expense_form.dart';
-import '../../widgets/logout_action.dart';
 import '../../widgets/month_selector.dart';
 import '../category_management/category_management_screen.dart';
 
@@ -139,7 +138,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gastos'),
-        actions: [const LogoutAction()],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(
