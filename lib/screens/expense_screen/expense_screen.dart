@@ -264,34 +264,48 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             }
                           }
 
-                          return ExpenseCard(
-                            title: expense.title,
-                            amount: expense.amount,
-                            category: expense.category,
-                            dueDate: expense.dueDate,
-                            color: color,
-                            isPaid: isPaid,
-                            paidDate: paidDate,
-                            notifyOnDue: expense.notifyOnDue,
-                            periodIndex: periodIndex,
-                            totalPeriods: totalPeriods,
-                            isInstallment: expense.recurrenceType == RecurrenceType.installment,
-                            onTogglePaid: () => context
-                                .read<ExpenseState>()
-                                .toggleExpensePaid(expense.id, _selectedMonth),
-                            onToggleNotify: () => context
-                                .read<ExpenseState>()
-                                .toggleNotifyOnDue(expense.id),
-                            onEdit: () {
-                              final original = expenseState.expenses
-                                  .where((e) => e.id == expense.id)
-                                  .firstOrNull;
-                              _openForm(context, expense: original ?? expense);
+                          return Dismissible(
+                            key: ValueKey('${expense.id}_${expense.dueDate}'),
+                            direction: DismissDirection.startToEnd,
+                            background: _PaidSwipeBackground(isPaid: isPaid),
+                            // Marcar pago não remove o card — só muda o estado.
+                            // confirmDismiss faz a ação e devolve false, então o
+                            // card volta e é reconstruído já como pago.
+                            confirmDismiss: (_) async {
+                              await context
+                                  .read<ExpenseState>()
+                                  .toggleExpensePaid(expense.id, _selectedMonth);
+                              return false;
                             },
-                            onDelete: () => _confirmDelete(
-                              context,
-                              expense.id,
-                              expense.title,
+                            child: ExpenseCard(
+                              title: expense.title,
+                              amount: expense.amount,
+                              category: expense.category,
+                              dueDate: expense.dueDate,
+                              color: color,
+                              isPaid: isPaid,
+                              paidDate: paidDate,
+                              notifyOnDue: expense.notifyOnDue,
+                              periodIndex: periodIndex,
+                              totalPeriods: totalPeriods,
+                              isInstallment: expense.recurrenceType == RecurrenceType.installment,
+                              onTogglePaid: () => context
+                                  .read<ExpenseState>()
+                                  .toggleExpensePaid(expense.id, _selectedMonth),
+                              onToggleNotify: () => context
+                                  .read<ExpenseState>()
+                                  .toggleNotifyOnDue(expense.id),
+                              onEdit: () {
+                                final original = expenseState.expenses
+                                    .where((e) => e.id == expense.id)
+                                    .firstOrNull;
+                                _openForm(context, expense: original ?? expense);
+                              },
+                              onDelete: () => _confirmDelete(
+                                context,
+                                expense.id,
+                                expense.title,
+                              ),
                             ),
                           );
                         },
@@ -300,6 +314,45 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Fundo revelado ao deslizar um gasto para a direita: verde para marcar pago,
+/// neutro para desmarcar (a ação alterna conforme o estado atual).
+class _PaidSwipeBackground extends StatelessWidget {
+  const _PaidSwipeBackground({required this.isPaid});
+
+  final bool isPaid;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isPaid ? const Color(0xFF6E6E78) : AppTheme.incomColor;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      alignment: Alignment.centerLeft,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isPaid
+                ? Icons.remove_circle_outline_rounded
+                : Icons.check_circle_outline_rounded,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            isPaid ? 'Desmarcar' : 'Marcar pago',
+            style: TextStyle(color: color, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
