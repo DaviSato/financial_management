@@ -54,9 +54,17 @@ void main() async {
 
   FirestoreService? firestoreService;
   if (FirebaseConfig.isConfigured) {
-    await Firebase.initializeApp(options: FirebaseConfig.options);
-    FirebaseConfig.initialized = true;
-    firestoreService = FirestoreService();
+    try {
+      await Firebase.initializeApp(options: FirebaseConfig.options);
+      FirebaseConfig.initialized = true;
+      firestoreService = FirestoreService();
+    } catch (e) {
+      // Config inválida não pode travar o app no boot: cai no modo local, de
+      // onde dá para corrigir em Perfil > Conectar à nuvem.
+      debugPrint('Falha ao inicializar o Firebase: $e');
+      FirebaseConfig.initialized = false;
+      firestoreService = null;
+    }
   }
 
   runApp(MainApp(firestoreService: firestoreService));

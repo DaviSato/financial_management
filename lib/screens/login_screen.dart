@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/firebase_config.dart';
 import '../theme/app_theme.dart';
+import 'profile/cloud_config_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -48,6 +50,14 @@ class _LoginScreenState extends State<LoginScreen> {
       default:
         return 'Erro ao entrar. Tente novamente.';
     }
+  }
+
+  Future<void> _openCloudConfig() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CloudConfigScreen()),
+    );
+    if (mounted) setState(() {}); // atualiza o rótulo do projeto ao voltar
   }
 
   Future<void> _signIn() async {
@@ -252,6 +262,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                       ),
+
+                      // ── Conexão com a nuvem ───────────────────
+                      const SizedBox(height: 28),
+                      _ConnectionStatus(onConfigure: _openCloudConfig),
                     ],
                   ),
                 ),
@@ -260,6 +274,53 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Mostra a qual projeto Firebase o login está conectado e dá acesso à
+/// configuração — o único ponto de onde reconfigurar a nuvem sem estar logado.
+class _ConnectionStatus extends StatelessWidget {
+  const _ConnectionStatus({required this.onConfigure});
+
+  final VoidCallback onConfigure;
+
+  @override
+  Widget build(BuildContext context) {
+    final projectId = FirebaseConfig.effectiveValues()['projectId'] ?? '';
+    final source = FirebaseConfig.isFromApp
+        ? 'configurado no app'
+        : 'padrão do build';
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.cloud_done_outlined,
+              size: 14,
+              color: AppTheme.incomColor.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                projectId.isEmpty
+                    ? 'Conexão com a nuvem'
+                    : 'Conectado a $projectId · $source',
+                style: const TextStyle(fontSize: 12, color: Colors.white38),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        TextButton.icon(
+          onPressed: onConfigure,
+          icon: const Icon(Icons.tune_rounded, size: 16),
+          label: const Text('Configurar conexão'),
+        ),
+      ],
     );
   }
 }
