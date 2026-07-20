@@ -9,6 +9,7 @@ import '../../models/recurrence.dart';
 import '../../providers/category_state.dart';
 import '../../providers/expense_state.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/capture_bell_button.dart';
 import '../../widgets/expense_form.dart';
 import '../../widgets/month_selector.dart';
 import '../category_management/category_management_screen.dart';
@@ -138,6 +139,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gastos'),
+        actions: const [CaptureBellButton()],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(
