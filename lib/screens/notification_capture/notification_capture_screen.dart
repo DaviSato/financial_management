@@ -12,9 +12,20 @@ import '../../services/transaction_parser.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/expense_form.dart';
 import '../../widgets/income_form.dart';
+import 'notification_capture_config_screen.dart';
 import 'widgets/captured_notification_card.dart';
-import 'widgets/discovery_panel.dart';
 import 'widgets/permission_banner.dart';
+
+/// Uma entrada da lista: uma notificação (com seu parse) e os arquivos da fila
+/// que ela representa — duplicatas da mesma transação são agrupadas para que
+/// apagar ou lançar remova todas de uma vez.
+class _CaptureGroup {
+  final CapturedNotification representative;
+  final ParsedTransaction? parsed;
+  final List<CapturedNotification> members;
+
+  const _CaptureGroup(this.representative, this.parsed, this.members);
+}
 
 /// Captura notificações de apps de banco e as apresenta para revisão manual.
 ///
@@ -36,7 +47,6 @@ class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
 
   bool _loading = true;
   bool _permissionGranted = false;
-  CaptureConfig _config = const CaptureConfig();
   List<CapturedNotification> _captured = const [];
 
   @override
@@ -61,35 +71,14 @@ class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
 
   Future<void> _refresh() async {
     final granted = await _service.isPermissionGranted();
-    final config = await _service.getConfig();
     final captured = await _service.peekQueue();
 
     if (!mounted) return;
     setState(() {
       _permissionGranted = granted;
-      _config = config;
       _captured = captured;
       _loading = false;
     });
-  }
-
-  Future<void> _toggleDiscovery(bool value) async {
-    await _service.setConfig(discoveryMode: value);
-    await _refresh();
-  }
-
-  Future<void> _toggleWatched(String package) async {
-    final updated = [..._config.watchedPackages];
-    updated.contains(package)
-        ? updated.remove(package)
-        : updated.add(package);
-    await _service.setConfig(watchedPackages: updated);
-    await _refresh();
-  }
-
-  Future<void> _clearSeen() async {
-    await _service.clearSeenPackages();
-    await _refresh();
   }
 
   Future<void> _clearQueue() async {
@@ -97,14 +86,44 @@ class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
     await _refresh();
   }
 
+  /// Agrupa as capturas: as reconhecidas pela mesma transação (dedupeKey)
+  /// viram um item só; as não reconhecidas ficam individuais.
+  List<_CaptureGroup> _groups() {
+    final byKey = <String, List<CapturedNotification>>{};
+    final order = <String>[];
+    for (final notification in _captured) {
+      final parsed = _parser.parse(notification);
+      final key = parsed?.dedupeKey ?? 'raw:${notification.filePath}';
+      if (!byKey.containsKey(key)) {
+        byKey[key] = [];
+        order.add(key);
+      }
+      byKey[key]!.add(notification);
+    }
+    return [
+      for (final key in order)
+        _CaptureGroup(
+          byKey[key]!.first,
+          _parser.parse(byKey[key]!.first),
+          byKey[key]!,
+        ),
+    ];
+  }
+
+  Future<void> _deleteGroup(_CaptureGroup group) async {
+    await _service.consume(group.members);
+    await _refresh();
+  }
+
   /// Abre o formulário pré-preenchido a partir do que o parser extraiu. Ao
-  /// salvar, o lançamento entra pelo caminho normal do provider e a notificação
-  /// sai da fila. A categoria continua sendo pedida no formulário.
-  void _launch(CapturedNotification source, ParsedTransaction? parsed) {
+  /// salvar, o lançamento entra pelo caminho normal do provider e as capturas
+  /// do grupo saem da fila. A categoria continua sendo pedida no formulário.
+  void _launch(_CaptureGroup group) {
+    final parsed = group.parsed;
     final isIncome = parsed?.type == TransactionType.income;
 
     void consume() {
-      _service.consume([source]);
+      _service.consume(group.members);
       _refresh();
     }
 
@@ -155,42 +174,30 @@ class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
     );
   }
 
-  /// Um card por notificação, já com o parse, pulando duplicatas — a mesma
-  /// compra pode notificar mais de uma vez e a notificação não traz id.
-  List<Widget> _dedupedCards() {
-    final seen = <String>{};
-    final cards = <Widget>[];
-    for (final notification in _captured) {
-      final parsed = _parser.parse(notification);
-      if (parsed != null && !seen.add(parsed.dedupeKey)) continue;
-      cards.add(
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: CapturedNotificationCard(
-            notification: notification,
-            parsed: parsed,
-            onLaunch: () => _launch(notification, parsed),
-          ),
-        ),
-      );
-    }
-    return cards;
+  void _openConfig() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NotificationCaptureConfigScreen(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_service.isSupported) return const _UnsupportedPlatform();
 
+    final groups = _groups();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Captura de notificações'),
+        title: const Text('Notificações capturadas'),
         actions: [
-          if (_captured.isNotEmpty)
-            IconButton(
-              tooltip: 'Limpar fila',
-              onPressed: _clearQueue,
-              icon: const Icon(Icons.delete_sweep_outlined),
-            ),
+          IconButton(
+            tooltip: 'Apps monitorados',
+            onPressed: _openConfig,
+            icon: const Icon(Icons.tune_rounded),
+          ),
         ],
       ),
       body: _loading
@@ -206,35 +213,75 @@ class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
                         await _service.openSettings();
                       },
                     ),
-                  DiscoveryPanel(
-                    discoveryMode: _config.discoveryMode,
-                    seenPackages: _config.seenPackages,
-                    watchedPackages: _config.watchedPackages,
-                    onToggleDiscovery: _toggleDiscovery,
-                    onToggleWatched: _toggleWatched,
-                    onClearSeen: _clearSeen,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                    child: Text(
-                      _captured.isEmpty
-                          ? 'CAPTURADAS'
-                          : 'CAPTURADAS · ${_captured.length}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF6E6E78),
-                        letterSpacing: 0.8,
+                  if (groups.isEmpty)
+                    const _EmptyQueue()
+                  else ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            'CAPTURADAS · ${groups.length}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF6E6E78),
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: _clearQueue,
+                            icon: const Icon(Icons.delete_sweep_outlined, size: 16),
+                            label: const Text('Limpar tudo'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.expenseColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  if (_captured.isEmpty)
-                    const _EmptyQueue()
-                  else
-                    ..._dedupedCards(),
+                    for (final group in groups)
+                      Dismissible(
+                        key: ValueKey(group.representative.filePath),
+                        direction: DismissDirection.endToStart,
+                        onDismissed: (_) => _deleteGroup(group),
+                        background: const _DismissBackground(),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          child: CapturedNotificationCard(
+                            notification: group.representative,
+                            parsed: group.parsed,
+                            onLaunch: () => _launch(group),
+                          ),
+                        ),
+                      ),
+                  ],
                 ],
               ),
             ),
+    );
+  }
+}
+
+/// Fundo vermelho revelado ao deslizar o card para apagar.
+class _DismissBackground extends StatelessWidget {
+  const _DismissBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      alignment: Alignment.centerRight,
+      decoration: BoxDecoration(
+        color: AppTheme.expenseColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.delete_outline_rounded,
+        color: AppTheme.expenseColor,
+      ),
     );
   }
 }
