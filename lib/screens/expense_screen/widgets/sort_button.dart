@@ -20,8 +20,8 @@ class SortButton extends StatelessWidget {
   final void Function(SortOption) onSelected;
 
   static const _items = [
-    (SortOption.dateDesc, Icons.history_rounded, 'Mais recente primeiro'),
     (SortOption.dateAsc, Icons.update_rounded, 'Mais antigo primeiro'),
+    (SortOption.dateDesc, Icons.history_rounded, 'Mais recente primeiro'),
     (
       SortOption.amountDesc,
       Icons.trending_down_rounded,
@@ -36,7 +36,7 @@ class SortButton extends StatelessWidget {
     (SortOption.categoryAz, Icons.label_outline_rounded, 'Categoria A→Z'),
   ];
 
-  bool get _isDefault => selected == SortOption.dateDesc;
+  bool get _isDefault => selected == SortOption.dateAsc;
 
   @override
   Widget build(BuildContext context) {

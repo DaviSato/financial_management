@@ -24,7 +24,7 @@ class ExpenseScreen extends StatefulWidget {
 class _ExpenseScreenState extends State<ExpenseScreen> {
   late DateTime _selectedMonth;
   String? _selectedCategory;
-  SortOption sortOption = SortOption.dateDesc;
+  SortOption sortOption = SortOption.dateAsc;
 
   @override
   void initState() {
@@ -187,11 +187,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     final aPaid = a.isPaidForMonth(_selectedMonth) ? 1 : 0;
                     final bPaid = b.isPaidForMonth(_selectedMonth) ? 1 : 0;
                     if (aPaid != bPaid) return aPaid - bPaid;
-                    return b.dueDate.compareTo(a.dueDate);
+                    return a.dueDate.compareTo(b.dueDate);
                   case SortOption.categoryAz:
                     final cmp = a.category.compareTo(b.category);
                     if (cmp != 0) return cmp;
-                    return b.dueDate.compareTo(a.dueDate);
+                    return a.dueDate.compareTo(b.dueDate);
                 }
               });
 
