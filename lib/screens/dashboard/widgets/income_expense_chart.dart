@@ -14,6 +14,7 @@ class IncomeExpenseChart extends StatelessWidget {
     required this.expensesByCategory,
     required this.categories,
     required this.colorForCategory,
+    this.hidePrivate = false,
   });
 
   final double income;
@@ -22,6 +23,9 @@ class IncomeExpenseChart extends StatelessWidget {
   final Map<String, double> expensesByCategory;
   final List<Category> categories;
   final Color Function(String, List<Category>, int) colorForCategory;
+
+  /// Oculta os valores de saldo e rendimento. Gastos permanecem visíveis.
+  final bool hidePrivate;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +91,9 @@ class IncomeExpenseChart extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      CurrencyFormatter.format(balance),
+                      hidePrivate
+                          ? 'R\$ ••••'
+                          : CurrencyFormatter.format(balance),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -112,6 +118,7 @@ class IncomeExpenseChart extends StatelessWidget {
               color: AppTheme.incomColor,
               label: 'Rendimentos',
               value: income,
+              obscured: hidePrivate,
             ),
           if (income > 0 && categoryEntries.isNotEmpty)
             const SizedBox(height: 10),

@@ -8,12 +8,14 @@ class HeroMetric extends StatelessWidget {
     required this.value,
     required this.color,
     required this.icon,
+    this.obscured = false,
   });
 
   final String label;
   final double value;
   final Color color;
   final IconData icon;
+  final bool obscured;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +39,7 @@ class HeroMetric extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            CurrencyFormatter.format(value),
+            obscured ? 'R\$ ••••' : CurrencyFormatter.format(value),
             style: TextStyle(
               color: color,
               fontSize: 15,

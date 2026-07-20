@@ -10,12 +10,17 @@ class HeroCard extends StatelessWidget {
     required this.expenses,
     required this.balance,
     required this.monthLabel,
+    this.hidePrivate = false,
   });
 
   final double income;
   final double expenses;
   final double balance;
   final String monthLabel;
+
+  /// Oculta rendimento e saldo (e o uso do orçamento, que deriva de ambos).
+  /// Gastos permanecem visíveis.
+  final bool hidePrivate;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +88,7 @@ class HeroCard extends StatelessWidget {
 
           // Balance amount
           Text(
-            CurrencyFormatter.format(balance),
+            hidePrivate ? 'R\$ ••••' : CurrencyFormatter.format(balance),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 34,
@@ -94,8 +99,9 @@ class HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Progress bar
-          if (income > 0) ...[
+          // Progress bar — escondido quando privado: a razão gastos/rendimento
+          // revelaria o rendimento a partir dos gastos, que ficam visíveis.
+          if (income > 0 && !hidePrivate) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -138,6 +144,7 @@ class HeroCard extends StatelessWidget {
                   value: income,
                   color: AppTheme.incomColor,
                   icon: Icons.arrow_upward_rounded,
+                  obscured: hidePrivate,
                 ),
               ),
               Container(

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../models/income.dart';
 import '../../models/recurrence.dart';
 import '../../providers/income_state.dart';
+import '../../providers/privacy_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/income_form.dart';
@@ -150,6 +151,22 @@ class _IncomeScreenState extends State<IncomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rendimentos'),
+        actions: [
+          Consumer<PrivacyState>(
+            builder: (context, privacy, _) => IconButton(
+              tooltip: privacy.hideIncome
+                  ? 'Mostrar valores'
+                  : 'Ocultar valores',
+              icon: Icon(
+                privacy.hideIncome
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+              ),
+              onPressed: () =>
+                  context.read<PrivacyState>().toggleHideIncome(),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(
@@ -174,8 +191,8 @@ class _IncomeScreenState extends State<IncomeScreen> {
         icon: const Icon(Icons.add, size: 20),
         label: const Text('Novo Rendimento'),
       ),
-      body: Consumer<IncomeState>(
-        builder: (context, incomeState, _) {
+      body: Consumer2<IncomeState, PrivacyState>(
+        builder: (context, incomeState, privacy, _) {
           final monthIncomes = incomeState.getIncomesListForMonth(
             _selectedMonth,
           )..sort((a, b) => a.receiveDate.compareTo(b.receiveDate));
@@ -211,6 +228,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
                 periodIndex: periodIndex,
                 totalPeriods: totalPeriods,
                 isAutomatic: income.origin.isAutomatic,
+                hideAmount: privacy.hideIncome,
                 onEdit: () => _openForm(context, income: original ?? income),
                 onDelete: () =>
                     _confirmDelete(context, income.id, income.title),

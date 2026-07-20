@@ -15,6 +15,7 @@ class IncomeCard extends StatelessWidget {
     this.periodIndex,
     this.totalPeriods,
     this.isAutomatic = false,
+    this.hideAmount = false,
   });
 
   final String title;
@@ -28,6 +29,7 @@ class IncomeCard extends StatelessWidget {
   final int? periodIndex;
   final int? totalPeriods;
   final bool isAutomatic;
+  final bool hideAmount;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +109,7 @@ class IncomeCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  CurrencyFormatter.format(amount),
+                  hideAmount ? 'R\$ ••••' : CurrencyFormatter.format(amount),
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,

@@ -13,6 +13,7 @@ import 'models/parsed_transaction.dart';
 import 'providers/category_state.dart';
 import 'providers/expense_state.dart';
 import 'providers/income_state.dart';
+import 'providers/privacy_state.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/expense_screen/expense_screen.dart';
 import 'screens/income_screen/income_screen.dart';
@@ -94,6 +95,7 @@ class MainApp extends StatelessWidget {
         ChangeNotifierProvider<ExpenseState>.value(value: expenseState),
         ChangeNotifierProvider<IncomeState>.value(value: incomeState),
         ChangeNotifierProvider<CategoryState>.value(value: categoryState),
+        ChangeNotifierProvider<PrivacyState>(create: (_) => PrivacyState()..load()),
       ],
       child: child,
     );

@@ -11,6 +11,7 @@ import '../../models/category.dart';
 import '../../providers/category_state.dart';
 import '../../providers/expense_state.dart';
 import '../../providers/income_state.dart';
+import '../../providers/privacy_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/month_selector.dart';
 
@@ -61,6 +62,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Painel'),
+        actions: [
+          Consumer<PrivacyState>(
+            builder: (context, privacy, _) => IconButton(
+              tooltip: privacy.hideIncome
+                  ? 'Mostrar valores'
+                  : 'Ocultar valores',
+              icon: Icon(
+                privacy.hideIncome
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+              ),
+              onPressed: () =>
+                  context.read<PrivacyState>().toggleHideIncome(),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(
@@ -83,6 +100,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: Consumer2<ExpenseState, IncomeState>(
         builder: (context, expenseState, incomeState, _) {
           final categories = context.watch<CategoryState>().categories;
+          final hidePrivate = context.watch<PrivacyState>().hideIncome;
           final income = incomeState.getIncomeForMonth(_selectedMonth);
           final expenses = expenseState.getExpensesForMonth(_selectedMonth);
           final balance = income - expenses;
@@ -103,6 +121,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   expenses: expenses,
                   balance: balance,
                   monthLabel: monthLabel,
+                  hidePrivate: hidePrivate,
                 ),
                 const SizedBox(height: 24),
 
@@ -117,6 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     expensesByCategory: expensesByCategory,
                     categories: categories,
                     colorForCategory: _colorForCategory,
+                    hidePrivate: hidePrivate,
                   ),
                   const SizedBox(height: 24),
                 ],

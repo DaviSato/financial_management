@@ -7,11 +7,13 @@ class ChartLegendRow extends StatelessWidget {
     required this.color,
     required this.label,
     required this.value,
+    this.obscured = false,
   });
 
   final Color color;
   final String label;
   final double value;
+  final bool obscured;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +34,7 @@ class ChartLegendRow extends StatelessWidget {
           ),
         ),
         Text(
-          CurrencyFormatter.format(value),
+          obscured ? 'R\$ ••••' : CurrencyFormatter.format(value),
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
