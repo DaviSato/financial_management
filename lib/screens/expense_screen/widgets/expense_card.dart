@@ -21,6 +21,7 @@ class ExpenseCard extends StatelessWidget {
     this.periodIndex,
     this.totalPeriods,
     this.isInstallment = false,
+    this.isAutomatic = false,
   });
 
   final String title;
@@ -38,6 +39,7 @@ class ExpenseCard extends StatelessWidget {
   final int? periodIndex;
   final int? totalPeriods;
   final bool isInstallment;
+  final bool isAutomatic;
 
   bool get _isOverdue {
     if (isPaid) return false;
@@ -148,6 +150,16 @@ class ExpenseCard extends StatelessWidget {
                                   color: Colors.white.withValues(alpha: isPaid ? 0.4 : 0.6),
                                   fontWeight: FontWeight.w500,
                                 ),
+                              ),
+                            ),
+                          ],
+                          if (isAutomatic) ...[
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.bolt_rounded,
+                              size: 13,
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: isPaid ? 0.4 : 0.75,
                               ),
                             ),
                           ],

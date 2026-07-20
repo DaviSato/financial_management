@@ -11,7 +11,9 @@ import '../../models/category.dart';
 import '../../providers/category_state.dart';
 import '../../providers/expense_state.dart';
 import '../../providers/income_state.dart';
+import '../../services/notification_capture_service.dart';
 import '../../theme/app_theme.dart';
+import '../notification_capture/notification_capture_screen.dart';
 import '../../widgets/logout_action.dart';
 import '../../widgets/month_selector.dart';
 
@@ -62,7 +64,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Painel'),
-        actions: const [LogoutAction()],
+        actions: [
+          if (NotificationCaptureService().isSupported)
+            IconButton(
+              tooltip: 'Captura de notificações',
+              icon: const Icon(Icons.notifications_paused_outlined),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const NotificationCaptureScreen(),
+                ),
+              ),
+            ),
+          const LogoutAction(),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(

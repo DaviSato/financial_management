@@ -1,0 +1,318 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/captured_notification.dart';
+import '../../models/expense.dart';
+import '../../models/income.dart';
+import '../../models/parsed_transaction.dart';
+import '../../providers/category_state.dart';
+import '../../providers/expense_state.dart';
+import '../../providers/income_state.dart';
+import '../../services/notification_capture_service.dart';
+import '../../services/transaction_parser.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/expense_form.dart';
+import '../../widgets/income_form.dart';
+import 'widgets/auto_import_settings.dart';
+import 'widgets/captured_notification_card.dart';
+import 'widgets/discovery_panel.dart';
+import 'widgets/permission_banner.dart';
+
+/// Fase 0 da importação automática: captura e inspeção de notificações cruas.
+///
+/// Ainda não cria gastos nem rendimentos. O propósito é reunir os formatos
+/// reais que os bancos usam para que os parsers sejam escritos sobre texto
+/// observado, e não sobre texto presumido.
+class NotificationCaptureScreen extends StatefulWidget {
+  const NotificationCaptureScreen({super.key});
+
+  @override
+  State<NotificationCaptureScreen> createState() =>
+      _NotificationCaptureScreenState();
+}
+
+class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
+    with WidgetsBindingObserver {
+  final _service = NotificationCaptureService();
+  final _parser = const TransactionParser();
+
+  bool _loading = true;
+  bool _permissionGranted = false;
+  CaptureConfig _config = const CaptureConfig();
+  List<CapturedNotification> _captured = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // O usuário concede a permissão fora do app e volta; e a fila só cresce
+    // enquanto estamos em background. Os dois casos pedem releitura ao voltar.
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final granted = await _service.isPermissionGranted();
+    final config = await _service.getConfig();
+    final captured = await _service.peekQueue();
+
+    if (!mounted) return;
+    setState(() {
+      _permissionGranted = granted;
+      _config = config;
+      _captured = captured;
+      _loading = false;
+    });
+  }
+
+  Future<void> _toggleDiscovery(bool value) async {
+    await _service.setConfig(discoveryMode: value);
+    await _refresh();
+  }
+
+  Future<void> _toggleWatched(String package) async {
+    final updated = [..._config.watchedPackages];
+    updated.contains(package)
+        ? updated.remove(package)
+        : updated.add(package);
+    await _service.setConfig(watchedPackages: updated);
+    await _refresh();
+  }
+
+  Future<void> _clearSeen() async {
+    await _service.clearSeenPackages();
+    await _refresh();
+  }
+
+  Future<void> _clearQueue() async {
+    await _service.clearQueue();
+    await _refresh();
+  }
+
+  /// Abre o formulário pré-preenchido a partir do que o parser extraiu. Ao
+  /// salvar, o lançamento entra pelo caminho normal do provider e a notificação
+  /// sai da fila. A categoria continua sendo pedida no formulário.
+  void _launch(CapturedNotification source, ParsedTransaction? parsed) {
+    final isIncome = parsed?.type == TransactionType.income;
+
+    void consume() {
+      _service.consume([source]);
+      _refresh();
+    }
+
+    if (isIncome) {
+      final draft = Income(
+        amount: parsed!.amount,
+        title: parsed.description,
+        receiveDate: parsed.postedAt,
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => IncomeFormDialog(
+            income: draft,
+            isEditing: false,
+            onSave: (income) {
+              context.read<IncomeState>().addIncome(income);
+              consume();
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Gasto — inclui o caso "não reconhecida", que abre o formulário vazio.
+    final draft = parsed == null
+        ? null
+        : Expense(
+            amount: parsed.amount,
+            title: parsed.description,
+            category: '',
+            dueDate: parsed.postedAt,
+            paymentMethod: parsed.paymentMethod,
+          );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ExpenseFormDialog(
+          expense: draft,
+          isEditing: false,
+          onSave: (expense) {
+            context.read<ExpenseState>().addExpense(expense);
+            consume();
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Um card por notificação, já com o parse, pulando duplicatas — a mesma
+  /// compra pode notificar mais de uma vez e a notificação não traz id.
+  List<Widget> _dedupedCards() {
+    final seen = <String>{};
+    final cards = <Widget>[];
+    for (final notification in _captured) {
+      final parsed = _parser.parse(notification);
+      if (parsed != null && !seen.add(parsed.dedupeKey)) continue;
+      cards.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: CapturedNotificationCard(
+            notification: notification,
+            parsed: parsed,
+            onLaunch: () => _launch(notification, parsed),
+          ),
+        ),
+      );
+    }
+    return cards;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_service.isSupported) return const _UnsupportedPlatform();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Captura de notificações'),
+        actions: [
+          if (_captured.isNotEmpty)
+            IconButton(
+              tooltip: 'Limpar fila',
+              onPressed: _clearQueue,
+              icon: const Icon(Icons.delete_sweep_outlined),
+            ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 32),
+                children: [
+                  if (!_permissionGranted)
+                    PermissionBanner(
+                      onOpenSettings: () async {
+                        await _service.openSettings();
+                      },
+                    ),
+                  AutoImportSettings(
+                    categories: context.watch<CategoryState>().categories,
+                  ),
+                  DiscoveryPanel(
+                    discoveryMode: _config.discoveryMode,
+                    seenPackages: _config.seenPackages,
+                    watchedPackages: _config.watchedPackages,
+                    onToggleDiscovery: _toggleDiscovery,
+                    onToggleWatched: _toggleWatched,
+                    onClearSeen: _clearSeen,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Text(
+                      _captured.isEmpty
+                          ? 'CAPTURADAS'
+                          : 'CAPTURADAS · ${_captured.length}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6E6E78),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  if (_captured.isEmpty)
+                    const _EmptyQueue()
+                  else
+                    ..._dedupedCards(),
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+class _EmptyQueue extends StatelessWidget {
+  const _EmptyQueue();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+      child: Column(
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 32,
+            color: Colors.white.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Nada capturado ainda',
+            style: TextStyle(fontSize: 13, color: Colors.white54),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Notificações dos apps marcados aparecem aqui, mesmo com o '
+            'Gestor fechado.',
+            style: TextStyle(fontSize: 12, color: Colors.white38),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnsupportedPlatform extends StatelessWidget {
+  const _UnsupportedPlatform();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Captura de notificações')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.phonelink_erase_outlined,
+                size: 40,
+                color: AppTheme.expenseColor.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Disponível apenas no Android',
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'O iOS não oferece API para ler notificações de outros apps. '
+                'Não é uma permissão difícil de obter — a capacidade não '
+                'existe no sistema.',
+                style: TextStyle(fontSize: 12, color: Colors.white54),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

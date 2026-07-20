@@ -13,7 +13,17 @@ class ExpenseFormDialog extends StatefulWidget {
   final Expense? expense;
   final Function(Expense) onSave;
 
-  const ExpenseFormDialog({super.key, this.expense, required this.onSave});
+  /// Sobrepõe a detecção de edição. Um rascunho vindo da captura de
+  /// notificações é pré-preenchido (via [expense]), mas é um lançamento novo —
+  /// então o cabeçalho deve dizer "Novo Gasto", não "Editar".
+  final bool? isEditing;
+
+  const ExpenseFormDialog({
+    super.key,
+    this.expense,
+    required this.onSave,
+    this.isEditing,
+  });
 
   @override
   State<ExpenseFormDialog> createState() => _ExpenseFormDialogState();
@@ -154,7 +164,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.expense != null;
+    final isEdit = widget.isEditing ?? (widget.expense != null);
 
     return Scaffold(
       appBar: AppBar(

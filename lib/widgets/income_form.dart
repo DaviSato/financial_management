@@ -9,7 +9,16 @@ class IncomeFormDialog extends StatefulWidget {
   final Income? income;
   final Function(Income) onSave;
 
-  const IncomeFormDialog({super.key, this.income, required this.onSave});
+  /// Sobrepõe a detecção de edição — um rascunho pré-preenchido vindo da
+  /// captura ainda é um lançamento novo. Ver [ExpenseFormDialog.isEditing].
+  final bool? isEditing;
+
+  const IncomeFormDialog({
+    super.key,
+    this.income,
+    required this.onSave,
+    this.isEditing,
+  });
 
   @override
   State<IncomeFormDialog> createState() => _IncomeFormDialogState();
@@ -138,7 +147,7 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.income != null;
+    final isEdit = widget.isEditing ?? (widget.income != null);
     final isRecurring = _recurrenceType == RecurrenceType.monthly;
     final isPeriod = _recurrenceType == RecurrenceType.period;
 
