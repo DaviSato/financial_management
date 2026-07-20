@@ -14,7 +14,6 @@ class IncomeCard extends StatelessWidget {
     this.recurrenceLabel,
     this.periodIndex,
     this.totalPeriods,
-    this.isAutomatic = false,
     this.hideAmount = false,
   });
 
@@ -28,7 +27,6 @@ class IncomeCard extends StatelessWidget {
   final String? recurrenceLabel;
   final int? periodIndex;
   final int? totalPeriods;
-  final bool isAutomatic;
   final bool hideAmount;
 
   @override
@@ -72,7 +70,7 @@ class IncomeCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (recurrenceLabel != null || showPeriodBadge || isAutomatic) ...[
+                  if (recurrenceLabel != null || showPeriodBadge) ...[
                     const SizedBox(height: 5),
                     Row(
                       children: [
@@ -88,14 +86,6 @@ class IncomeCard extends StatelessWidget {
                             text: '$periodIndex/$totalPeriods',
                             color: Colors.white,
                           ),
-                        if (isAutomatic) ...[
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.bolt_rounded,
-                            size: 13,
-                            color: AppTheme.primaryColor.withValues(alpha: 0.75),
-                          ),
-                        ],
                       ],
                     ),
                   ],

@@ -6,10 +6,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
-import 'models/entry_origin.dart';
-import 'models/expense.dart';
-import 'models/income.dart';
-import 'models/parsed_transaction.dart';
 import 'providers/category_state.dart';
 import 'providers/expense_state.dart';
 import 'providers/income_state.dart';
@@ -20,12 +16,9 @@ import 'screens/income_screen/income_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'services/auth_service.dart';
-import 'services/auto_import_service.dart';
-import 'services/capture_settings.dart';
 import 'services/cloud_config.dart';
 import 'services/firebase_config.dart';
 import 'services/firestore_service.dart';
-import 'services/notification_capture_service.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
@@ -156,7 +149,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
+class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   static const List<Widget> _screens = [
@@ -165,85 +158,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ExpenseScreen(),
     ProfileScreen(),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    // Drena a fila ao abrir: a captura acontece com o app fechado, então o que
-    // chegou desde a última sessão só é processado agora.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _runAutoImport());
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _runAutoImport();
-  }
-
-  /// Importa automaticamente o que veio de regra confirmada, se o usuário
-  /// ativou a opção. Provisório e não reconhecido ficam para revisão manual.
-  Future<void> _runAutoImport() async {
-    final capture = NotificationCaptureService();
-    if (!capture.isSupported || !mounted) return;
-
-    // Referências capturadas antes dos awaits para não usar context depois.
-    final expenseState = context.read<ExpenseState>();
-    final incomeState = context.read<IncomeState>();
-    final categoryState = context.read<CategoryState>();
-
-    if (!await CaptureSettings().isAutoImportEnabled()) return;
-
-    final queue = await capture.peekQueue();
-    if (queue.isEmpty) return;
-
-    final plan = const AutoImportService().plan(queue);
-    if (plan.isEmpty) return;
-
-    final configured = await CaptureSettings().defaultCategory();
-    final category = _resolveAutoCategory(configured, categoryState);
-
-    for (final t in plan.toCreate) {
-      if (t.type == TransactionType.income) {
-        await incomeState.addIncome(
-          Income(
-            amount: t.amount,
-            title: t.description.isEmpty ? 'Recebimento' : t.description,
-            receiveDate: t.postedAt,
-            origin: EntryOrigin.automatic,
-          ),
-        );
-      } else {
-        await expenseState.addExpense(
-          Expense(
-            amount: t.amount,
-            title: t.description.isEmpty ? 'Compra' : t.description,
-            category: category,
-            dueDate: t.postedAt,
-            paymentMethod: t.paymentMethod,
-            origin: EntryOrigin.automatic,
-          ),
-        );
-      }
-    }
-
-    await capture.consume(plan.toConsume);
-  }
-
-  /// Categoria dos gastos automáticos: a configurada, senão a primeira
-  /// existente, senão um rótulo neutro que ainda é válido.
-  String _resolveAutoCategory(String? configured, CategoryState categories) {
-    if (configured != null && configured.isNotEmpty) return configured;
-    if (categories.categories.isNotEmpty) {
-      return categories.categories.first.name;
-    }
-    return 'Outros';
-  }
 
   @override
   Widget build(BuildContext context) {

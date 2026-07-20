@@ -274,7 +274,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             periodIndex: periodIndex,
                             totalPeriods: totalPeriods,
                             isInstallment: expense.recurrenceType == RecurrenceType.installment,
-                            isAutomatic: expense.origin.isAutomatic,
                             onTogglePaid: () => context
                                 .read<ExpenseState>()
                                 .toggleExpensePaid(expense.id, _selectedMonth),

@@ -47,10 +47,9 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 - **Ocultar valores** — o mesmo olho mascara rendimento e saldo (mantendo os gastos visíveis)
 
 ### Importação por notificações do banco _(Android)_
-- Captura notificações de apps de banco (ex: Nubank) e as transforma em gastos e rendimentos
+- Captura notificações de apps de banco (ex: Nubank) e as apresenta para você lançar como gasto ou rendimento
 - **Parser por palavra-chave**, agnóstico de banco: valor pelo `R$`, tipo por débito/crédito/pix, ignora compras negadas e estornos
-- **Modo manual** (padrão): as notificações ficam listadas e você confirma cada lançamento pelo formulário
-- **Modo automático** (opcional): lança sozinho o que é reconhecido com segurança, marcado como origem automática; o resto aguarda revisão
+- **Sempre com confirmação** — cada notificação vira um lançamento só quando você confirma pelo formulário; nada é criado automaticamente, para não duplicar o que já existe (recorrentes, parcelados)
 - **Modo descoberta** para identificar o app do banco registrando apenas o nome dos apps, sem conteúdo
 - Serviço nativo em Kotlin, roda com o app fechado; nada é interpretado no lado nativo
 
@@ -190,8 +189,8 @@ flutter run
 
 ```
 lib/
-├── main.dart                     # Inicialização, Firebase opcional, MultiProvider, importação automática
-├── models/                       # Expense, Income, Category, PaymentMethod, EntryOrigin,
+├── main.dart                     # Inicialização, Firebase opcional, MultiProvider
+├── models/                       # Expense, Income, Category, PaymentMethod,
 │                                 #   CapturedNotification, ParsedTransaction, enums
 ├── providers/
 │   ├── expense_state.dart        # CRUD de gastos, computed helpers por mês
@@ -214,9 +213,7 @@ lib/
 │   ├── cloud_config.dart                 # Config do Firebase informada no app
 │   ├── notification_service.dart         # Notificações locais de vencimento
 │   ├── notification_capture_service.dart # Ponte para o serviço nativo de captura
-│   ├── transaction_parser.dart           # Interpreta notificações (palavra-chave)
-│   ├── auto_import_service.dart          # Decide o que importar automaticamente
-│   └── capture_settings.dart             # Preferências da importação
+│   └── transaction_parser.dart           # Interpreta notificações (palavra-chave)
 ├── utils/                        # currency_formatter, date_utils, brazilian_currency_input_formatter
 ├── widgets/                      # Componentes reutilizáveis (formulários, month_selector, ...)
 ├── theme/

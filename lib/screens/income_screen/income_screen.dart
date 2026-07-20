@@ -227,7 +227,6 @@ class _IncomeScreenState extends State<IncomeScreen> {
                 recurrenceLabel: _recurrenceLabel(income),
                 periodIndex: periodIndex,
                 totalPeriods: totalPeriods,
-                isAutomatic: income.origin.isAutomatic,
                 hideAmount: privacy.hideIncome,
                 onEdit: () => _openForm(context, income: original ?? income),
                 onDelete: () =>

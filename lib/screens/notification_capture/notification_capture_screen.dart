@@ -5,7 +5,6 @@ import '../../models/captured_notification.dart';
 import '../../models/expense.dart';
 import '../../models/income.dart';
 import '../../models/parsed_transaction.dart';
-import '../../providers/category_state.dart';
 import '../../providers/expense_state.dart';
 import '../../providers/income_state.dart';
 import '../../services/notification_capture_service.dart';
@@ -13,16 +12,15 @@ import '../../services/transaction_parser.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/expense_form.dart';
 import '../../widgets/income_form.dart';
-import 'widgets/auto_import_settings.dart';
 import 'widgets/captured_notification_card.dart';
 import 'widgets/discovery_panel.dart';
 import 'widgets/permission_banner.dart';
 
-/// Fase 0 da importação automática: captura e inspeção de notificações cruas.
+/// Captura notificações de apps de banco e as apresenta para revisão manual.
 ///
-/// Ainda não cria gastos nem rendimentos. O propósito é reunir os formatos
-/// reais que os bancos usam para que os parsers sejam escritos sobre texto
-/// observado, e não sobre texto presumido.
+/// Cada notificação capturada é interpretada pelo parser e vira um lançamento
+/// só quando o usuário confirma pelo formulário — nunca automaticamente, para
+/// não duplicar gastos que já existem (recorrentes, parcelados).
 class NotificationCaptureScreen extends StatefulWidget {
   const NotificationCaptureScreen({super.key});
 
@@ -208,9 +206,6 @@ class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
                         await _service.openSettings();
                       },
                     ),
-                  AutoImportSettings(
-                    categories: context.watch<CategoryState>().categories,
-                  ),
                   DiscoveryPanel(
                     discoveryMode: _config.discoveryMode,
                     seenPackages: _config.seenPackages,
