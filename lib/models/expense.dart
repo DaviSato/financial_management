@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import 'entry_origin.dart';
 import 'payment_method.dart';
 import 'recurrence.dart';
 
@@ -16,6 +17,7 @@ class Expense {
   final DateTime createdAt;
   final Map<String, DateTime> paidByMonth;
   final bool notifyOnDue;
+  final EntryOrigin origin;
 
   Expense({
     String? id,
@@ -30,6 +32,7 @@ class Expense {
     DateTime? createdAt,
     Map<String, DateTime>? paidByMonth,
     this.notifyOnDue = false,
+    this.origin = EntryOrigin.manual,
   }) : id = id ?? Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        paidByMonth = paidByMonth ?? {};
@@ -64,6 +67,7 @@ class Expense {
       'createdAt': createdAt.toIso8601String(),
       'paidByMonth': paidByMonth.map((k, v) => MapEntry(k, v.toIso8601String())),
       'notifyOnDue': notifyOnDue,
+      'origin': origin.name,
     };
   }
 
@@ -87,6 +91,7 @@ class Expense {
               ?.map((k, v) => MapEntry(k, DateTime.parse(v as String))) ??
           {},
       notifyOnDue: json['notifyOnDue'] as bool? ?? false,
+      origin: EntryOrigin.fromString(json['origin'] as String?),
     );
   }
 
@@ -118,6 +123,7 @@ class Expense {
     DateTime? createdAt,
     Map<String, DateTime>? paidByMonth,
     bool? notifyOnDue,
+    EntryOrigin? origin,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -132,6 +138,7 @@ class Expense {
       createdAt: createdAt ?? this.createdAt,
       paidByMonth: paidByMonth ?? Map.of(this.paidByMonth),
       notifyOnDue: notifyOnDue ?? this.notifyOnDue,
+      origin: origin ?? this.origin,
     );
   }
 

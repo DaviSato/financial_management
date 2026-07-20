@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import 'entry_origin.dart';
 import 'recurrence.dart';
 
 class Income {
@@ -12,6 +13,7 @@ class Income {
   final int? intervalMonths; // For monthly recurrence: repete a cada N meses
   final DateTime receiveDate;
   final DateTime createdAt;
+  final EntryOrigin origin;
 
   Income({
     String? id,
@@ -23,6 +25,7 @@ class Income {
     this.intervalMonths,
     DateTime? receiveDate,
     DateTime? createdAt,
+    this.origin = EntryOrigin.manual,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        receiveDate = receiveDate ?? createdAt ?? DateTime.now();
@@ -44,6 +47,7 @@ class Income {
       'intervalMonths': intervalMonths,
       'receiveDate': receiveDate.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
+      'origin': origin.name,
     };
   }
 
@@ -66,6 +70,7 @@ class Income {
           ? DateTime.parse(json['receiveDate'] as String)
           : createdAt,
       createdAt: createdAt,
+      origin: EntryOrigin.fromString(json['origin'] as String?),
     );
   }
 
@@ -88,6 +93,7 @@ class Income {
     int? intervalMonths,
     DateTime? receiveDate,
     DateTime? createdAt,
+    EntryOrigin? origin,
   }) {
     return Income(
       id: id ?? this.id,
@@ -99,6 +105,7 @@ class Income {
       intervalMonths: intervalMonths ?? this.intervalMonths,
       receiveDate: receiveDate ?? this.receiveDate,
       createdAt: createdAt ?? this.createdAt,
+      origin: origin ?? this.origin,
     );
   }
 
