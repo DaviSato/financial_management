@@ -43,6 +43,14 @@ class NotificationService {
           requestBadgePermission: false,
           requestSoundPermission: false,
         ),
+        // Windows exige identidade fixa para registrar o app junto ao sistema
+        // de notificações. O GUID identifica o callback de ativação e não pode
+        // mudar entre versões, senão as notificações agendadas se perdem.
+        windows: WindowsInitializationSettings(
+          appName: 'Gestão Financeira',
+          appUserModelId: 'MMInfo.GestaoFinanceira',
+          guid: '70e33fd3-cbed-469d-a9ae-a857439ddd7c',
+        ),
       ),
     );
   }

@@ -15,6 +15,7 @@ import '../../providers/privacy_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/capture_bell_button.dart';
 import '../../widgets/month_selector.dart';
+import '../../widgets/responsive_body.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -99,7 +100,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
-      body: Consumer2<ExpenseState, IncomeState>(
+      body: ResponsiveBody(
+        // Mais largo que as demais telas: comporta o card de saldo e o gráfico
+        // lado a lado em janelas de desktop (ver _HeroAndChart).
+        maxWidth: 1040,
+        child: Consumer2<ExpenseState, IncomeState>(
         builder: (context, expenseState, incomeState, _) {
           final categories = context.watch<CategoryState>().categories;
           final hidePrivate = context.watch<PrivacyState>().hideIncome;
@@ -117,31 +122,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Hero Balance Card ──────────────────────────
-                HeroCard(
+                // ── Saldo + gráfico (lado a lado no desktop) ───
+                _HeroAndChart(
                   income: income,
                   expenses: expenses,
                   balance: balance,
                   monthLabel: monthLabel,
                   hidePrivate: hidePrivate,
+                  expensesByCategory: expensesByCategory,
+                  categories: categories,
+                  colorForCategory: _colorForCategory,
                 ),
                 const SizedBox(height: 24),
-
-                // ── Income vs Expenses Chart ──────────────────
-                if (income > 0 || expenses > 0) ...[
-                  const SectionHeader(title: 'Visão do Mês'),
-                  const SizedBox(height: 16),
-                  IncomeExpenseChart(
-                    income: income,
-                    expenses: expenses,
-                    balance: balance,
-                    expensesByCategory: expensesByCategory,
-                    categories: categories,
-                    colorForCategory: _colorForCategory,
-                    hidePrivate: hidePrivate,
-                  ),
-                  const SizedBox(height: 24),
-                ],
 
                 // ── Expenses by Category ──────────────────────
                 if (expensesByCategory.isNotEmpty) ...[
@@ -158,7 +150,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         },
+        ),
       ),
+    );
+  }
+}
+
+/// Card de saldo e gráfico do mês. Em janelas largas (desktop) ficam lado a
+/// lado; em telas estreitas (celular) empilham. Quando não há dados no mês só
+/// o card aparece — o gráfico não faz sentido sem valores.
+class _HeroAndChart extends StatelessWidget {
+  const _HeroAndChart({
+    required this.income,
+    required this.expenses,
+    required this.balance,
+    required this.monthLabel,
+    required this.hidePrivate,
+    required this.expensesByCategory,
+    required this.categories,
+    required this.colorForCategory,
+  });
+
+  final double income;
+  final double expenses;
+  final double balance;
+  final String monthLabel;
+  final bool hidePrivate;
+  final Map<String, double> expensesByCategory;
+  final List<Category> categories;
+  final Color Function(String, List<Category>, int) colorForCategory;
+
+  /// Acima desta largura o card e o gráfico ficam lado a lado.
+  static const _sideBySideBreakpoint = 820.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final hero = HeroCard(
+      income: income,
+      expenses: expenses,
+      balance: balance,
+      monthLabel: monthLabel,
+      hidePrivate: hidePrivate,
+    );
+
+    // Sem movimento no mês, o gráfico não tem o que mostrar.
+    if (income <= 0 && expenses <= 0) return hero;
+
+    final chart = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Visão do Mês'),
+        const SizedBox(height: 16),
+        IncomeExpenseChart(
+          income: income,
+          expenses: expenses,
+          balance: balance,
+          expensesByCategory: expensesByCategory,
+          categories: categories,
+          colorForCategory: colorForCategory,
+          hidePrivate: hidePrivate,
+        ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _sideBySideBreakpoint) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: hero),
+              const SizedBox(width: 24),
+              Expanded(child: chart),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            hero,
+            const SizedBox(height: 24),
+            chart,
+          ],
+        );
+      },
     );
   }
 }

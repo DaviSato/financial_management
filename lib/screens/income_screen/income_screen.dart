@@ -12,6 +12,7 @@ import '../../utils/date_utils.dart';
 import '../../widgets/capture_bell_button.dart';
 import '../../widgets/income_form.dart';
 import '../../widgets/month_selector.dart';
+import '../../widgets/responsive_body.dart';
 
 class IncomeScreen extends StatefulWidget {
   const IncomeScreen({super.key});
@@ -193,7 +194,8 @@ class _IncomeScreenState extends State<IncomeScreen> {
         icon: const Icon(Icons.add, size: 20),
         label: const Text('Novo Rendimento'),
       ),
-      body: Consumer2<IncomeState, PrivacyState>(
+      body: ResponsiveBody(
+        child: Consumer2<IncomeState, PrivacyState>(
         builder: (context, incomeState, privacy, _) {
           final monthIncomes = incomeState.getIncomesListForMonth(
             _selectedMonth,
@@ -237,6 +239,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
             },
           );
         },
+        ),
       ),
     );
   }

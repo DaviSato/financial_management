@@ -102,7 +102,11 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
-                child: Form(
+                // Em telas largas (desktop) o formulário não estica: fica numa
+                // coluna centralizada de largura confortável.
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -268,6 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       _ConnectionStatus(onConfigure: _openCloudConfig),
                     ],
                   ),
+                ),
                 ),
               ),
             ),

@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/capture_bell_button.dart';
 import '../../widgets/expense_form.dart';
 import '../../widgets/month_selector.dart';
+import '../../widgets/responsive_body.dart';
 import '../category_management/category_management_screen.dart';
 
 class ExpenseScreen extends StatefulWidget {
@@ -164,7 +165,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         icon: const Icon(Icons.add, size: 20),
         label: const Text('Novo Gasto'),
       ),
-      body: Consumer2<ExpenseState, CategoryState>(
+      body: ResponsiveBody(
+        child: Consumer2<ExpenseState, CategoryState>(
         builder: (context, expenseState, categoryState, _) {
           final monthExpenses = expenseState.getExpensesListForMonth(
             _selectedMonth,
@@ -314,6 +316,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             ],
           );
         },
+        ),
       ),
     );
   }

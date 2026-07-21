@@ -11,6 +11,8 @@ import '../../services/notification_capture_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/platform_capabilities.dart';
+import '../../widgets/responsive_body.dart';
 import '../notification_capture/notification_capture_screen.dart';
 import 'cloud_config_screen.dart';
 import 'import_review_screen.dart';
@@ -256,6 +258,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final pendingRestart = !cloudLive && FirebaseConfig.isConfigured;
     final email = cloudLive ? AuthService().currentUser?.email : null;
     final captureSupported = NotificationCaptureService().isSupported;
+    final notificationsSupported =
+        PlatformCapabilities.supportsScheduledNotifications;
 
     final timeLabel = _notificationTime == null
         ? '—'
@@ -263,7 +267,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Perfil')),
-      body: ListView(
+      body: ResponsiveBody(
+        child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           // ── Conta / Nuvem ────────────────────────────────
@@ -313,20 +318,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
 
           // ── Notificações ─────────────────────────────────
-          const SettingsSection(title: 'Notificações'),
-          SettingsTile(
-            icon: Icons.schedule_outlined,
-            title: 'Horário do aviso de vencimentos',
-            subtitle: 'Um aviso por dia, às $timeLabel',
-            trailing: Text(
-              timeLabel,
-              style: const TextStyle(
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.w600,
+          // Só onde o agendamento local roda (mobile). No desktop a seção some.
+          if (notificationsSupported) ...[
+            const SettingsSection(title: 'Notificações'),
+            SettingsTile(
+              icon: Icons.schedule_outlined,
+              title: 'Horário do aviso de vencimentos',
+              subtitle: 'Um aviso por dia, às $timeLabel',
+              trailing: Text(
+                timeLabel,
+                style: const TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              onTap: _pickNotificationTime,
             ),
-            onTap: _pickNotificationTime,
-          ),
+          ],
 
           // ── Importação ───────────────────────────────────
           const SettingsSection(title: 'Importação'),
@@ -349,6 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: _importData,
           ),
         ],
+        ),
       ),
     );
   }

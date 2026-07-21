@@ -22,6 +22,7 @@ import 'services/firestore_service.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
+import 'utils/platform_capabilities.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,8 +39,12 @@ void main() async {
     ),
   );
 
-  await NotificationService().init();
-  await NotificationService().requestPermissions();
+  // Avisos de vencimento só no mobile: no desktop o agendamento local ainda
+  // não está configurado (ver PlatformCapabilities).
+  if (PlatformCapabilities.supportsScheduledNotifications) {
+    await NotificationService().init();
+    await NotificationService().requestPermissions();
+  }
 
   // Config da nuvem: app (SharedPreferences) sobrepõe o .env. Carregada aqui
   // para que FirebaseConfig possa lê-la de forma síncrona no boot.
@@ -149,8 +154,29 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
+/// Um destino de navegação, compartilhado entre a barra inferior (mobile) e o
+/// rail lateral (desktop/janela larga).
+class _NavDestination {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+
+  const _NavDestination({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
+}
+
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+
+  /// Acima desta largura a navegação vira um rail lateral em vez da barra
+  /// inferior — o layout de celular estica feio numa janela de desktop.
+  static const _railBreakpoint = 720.0;
+
+  /// Bem largo: o rail ganha rótulos ao lado dos ícones.
+  static const _extendedRailBreakpoint = 1100.0;
 
   static const List<Widget> _screens = [
     DashboardScreen(),
@@ -159,8 +185,42 @@ class _MainScreenState extends State<MainScreen> {
     ProfileScreen(),
   ];
 
+  static const List<_NavDestination> _destinations = [
+    _NavDestination(
+      icon: Icons.grid_view_outlined,
+      selectedIcon: Icons.grid_view_rounded,
+      label: 'Painel',
+    ),
+    _NavDestination(
+      icon: Icons.savings_outlined,
+      selectedIcon: Icons.savings_rounded,
+      label: 'Rendimentos',
+    ),
+    _NavDestination(
+      icon: Icons.receipt_long_outlined,
+      selectedIcon: Icons.receipt_long_rounded,
+      label: 'Gastos',
+    ),
+    _NavDestination(
+      icon: Icons.person_outline_rounded,
+      selectedIcon: Icons.person_rounded,
+      label: 'Perfil',
+    ),
+  ];
+
+  void _onSelect(int index) => setState(() => _selectedIndex = index);
+
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useRail = constraints.maxWidth >= _railBreakpoint;
+        return useRail ? _buildWideLayout(constraints) : _buildNarrowLayout();
+      },
+    );
+  }
+
+  Widget _buildNarrowLayout() {
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: Container(
@@ -174,31 +234,48 @@ class _MainScreenState extends State<MainScreen> {
         ),
         child: NavigationBar(
           selectedIndex: _selectedIndex,
-          onDestinationSelected: (index) =>
-              setState(() => _selectedIndex = index),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.grid_view_outlined),
-              selectedIcon: Icon(Icons.grid_view_rounded),
-              label: 'Painel',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.savings_outlined),
-              selectedIcon: Icon(Icons.savings_rounded),
-              label: 'Rendimentos',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long_rounded),
-              label: 'Gastos',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline_rounded),
-              selectedIcon: Icon(Icons.person_rounded),
-              label: 'Perfil',
-            ),
+          onDestinationSelected: _onSelect,
+          destinations: [
+            for (final d in _destinations)
+              NavigationDestination(
+                icon: Icon(d.icon),
+                selectedIcon: Icon(d.selectedIcon),
+                label: d.label,
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildWideLayout(BoxConstraints constraints) {
+    final extended = constraints.maxWidth >= _extendedRailBreakpoint;
+    return Scaffold(
+      body: Row(
+        children: [
+          NavigationRail(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: _onSelect,
+            extended: extended,
+            labelType: extended
+                ? NavigationRailLabelType.none
+                : NavigationRailLabelType.all,
+            destinations: [
+              for (final d in _destinations)
+                NavigationRailDestination(
+                  icon: Icon(d.icon),
+                  selectedIcon: Icon(d.selectedIcon),
+                  label: Text(d.label),
+                ),
+            ],
+          ),
+          VerticalDivider(
+            width: 1,
+            thickness: 1,
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
+          Expanded(child: _screens[_selectedIndex]),
+        ],
       ),
     );
   }
