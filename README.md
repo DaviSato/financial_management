@@ -51,7 +51,16 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 - **Parser por palavra-chave**, agnóstico de banco: valor pelo `R$`, tipo por débito/crédito/pix, ignora compras negadas e estornos
 - **Sempre com confirmação** — cada notificação vira um lançamento só quando você confirma pelo formulário; nada é criado automaticamente, para não duplicar o que já existe (recorrentes, parcelados)
 - **Modo descoberta** para identificar o app do banco registrando apenas o nome dos apps, sem conteúdo
+- **Sino com contador** de capturas pendentes nas abas principais, para você não esquecer de revisar
+- **Gestos na lista** — deslize para apagar uma captura, ou "limpar tudo" de uma vez
 - Serviço nativo em Kotlin, roda com o app fechado; nada é interpretado no lado nativo
+
+### Importação de planilha
+- Importa uma planilha de orçamento (`.xlsx` / `.xls`) no layout do modelo mensal: **Receitas** nas colunas B/C e **Débitos** nas colunas E/F
+- Extrai rendimentos, gastos e categorias (a descrição do gasto vira categoria, com cor automática)
+- **Tela de revisão prévia** — mostra tudo o que foi lido antes de criar qualquer coisa, para um erro de leitura não virar dado
+- Tudo é assumido como mensal recorrente, no 1º dia do mês da aba
+- Seleção de arquivo com `FileType.any` (o filtro por extensão acinzentava arquivos no Android/MIUI); a extensão é validada após a escolha
 
 ### Perfil / Configurações
 - Aba própria que reúne conta, notificações, importação e conexão à nuvem
@@ -207,7 +216,7 @@ lib/
 │   ├── income_screen/            # income_screen + widgets (income_card, empty_state)
 │   ├── category_management/      # category_management_screen + widgets
 │   ├── notification_capture/     # tela de captura + parse + widgets (Android)
-│   ├── profile/                  # profile_screen, cloud_config_screen + widgets
+│   ├── profile/                  # profile_screen, cloud_config_screen, import_review_screen + widgets
 │   └── login_screen.dart
 ├── services/
 │   ├── storage_service.dart              # SharedPreferences (sempre ativo)
@@ -217,7 +226,8 @@ lib/
 │   ├── cloud_config.dart                 # Config do Firebase informada no app
 │   ├── notification_service.dart         # Notificações locais de vencimento
 │   ├── notification_capture_service.dart # Ponte para o serviço nativo de captura
-│   └── transaction_parser.dart           # Interpreta notificações (palavra-chave)
+│   ├── transaction_parser.dart           # Interpreta notificações (palavra-chave)
+│   └── data_import_service.dart          # Lê planilha .xlsx/.xls → rendimentos/gastos/categorias
 ├── utils/                        # currency_formatter, date_utils, brazilian_currency_input_formatter
 ├── widgets/                      # Componentes reutilizáveis (formulários, month_selector, ...)
 ├── theme/
