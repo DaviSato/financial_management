@@ -5,7 +5,18 @@
       "Bash(flutter pub:*)",
       "Bash(flutter build:*)",
       "Bash(dart pub:*)",
-      "Bash(python -c \"import sys,json; deps=json.load\\(sys.stdin\\); [print\\(p['name'], p['version']\\) for p in deps['packages'] if p['name']=='flutter_local_notifications']\")"
+      "Bash(python -c \"import sys,json; deps=json.load\\(sys.stdin\\); [print\\(p['name'], p['version']\\) for p in deps['packages'] if p['name']=='flutter_local_notifications']\")",
+      "Bash(powershell -Command \"Get-Process java -ErrorAction SilentlyContinue | Select Id,Name\")",
+      "Bash(powershell -Command \"Get-Process java | Stop-Process -Force\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\projetos pessoais\\\\financial_management\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Read(//c/Users/MMDEV04/Downloads/**)",
+      "Read(//d/projetos_mm/.pub-cache/hosted/pub.dev/flutter_local_notifications_windows-3.0.0/lib/**)",
+      "Bash(sed -n '/class WindowsInitializationSettings/,/^}/p' /d/projetos_mm/.pub-cache/hosted/pub.dev/flutter_local_notifications_windows-3.0.0/lib/src/details/initialization_settings.dart)",
+      "PowerShell(flutter analyze *)"
     ]
   }
 }

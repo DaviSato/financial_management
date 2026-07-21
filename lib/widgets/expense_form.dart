@@ -5,9 +5,11 @@ import '../models/expense.dart';
 import '../models/payment_method.dart';
 import '../models/recurrence.dart';
 import '../providers/category_state.dart';
+import '../theme/app_theme.dart';
 import '../utils/brazilian_currency_input_formatter.dart';
 import '../utils/currency_formatter.dart';
 import 'category_form_dialog.dart';
+import 'logo_picker_field.dart';
 
 class ExpenseFormDialog extends StatefulWidget {
   final Expense? expense;
@@ -41,11 +43,13 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
   late int _durationMonths;
   PaymentMethod? _paymentMethod;
   late bool _notifyOnDue;
+  String? _logoDomain;
 
   @override
   void initState() {
     super.initState();
     final e = widget.expense;
+    _logoDomain = e?.logoDomain;
     _amountController = TextEditingController(
       text: e != null ? CurrencyFormatter.format(e.amount) : '',
     );
@@ -106,6 +110,14 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
     if (picked != null) setState(() => _selectedDay = picked);
   }
 
+  Color _categoryColor() {
+    final categories = context.read<CategoryState>().categories;
+    for (final c in categories) {
+      if (c.name == _selectedCategory) return c.color;
+    }
+    return AppTheme.expenseColor;
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -157,6 +169,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
         paymentMethod: _paymentMethod,
         notifyOnDue: _notifyOnDue,
         paidByMonth: widget.expense?.paidByMonth,
+        logoDomain: _logoDomain,
       ),
     );
     Navigator.of(context).pop();
@@ -266,6 +279,14 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                         },
                       ),
                     ),
+                  ),
+
+                  // ── Logo da marca ────────────────────────────
+                  const SizedBox(height: 12),
+                  LogoPickerField(
+                    logoDomain: _logoDomain,
+                    color: _categoryColor(),
+                    onChanged: (d) => setState(() => _logoDomain = d),
                   ),
 
                   // ── Pagamento ────────────────────────────────

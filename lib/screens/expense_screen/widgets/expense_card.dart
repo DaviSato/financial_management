@@ -1,5 +1,6 @@
 import 'package:financial_management/theme/app_theme.dart';
 import 'package:financial_management/utils/currency_formatter.dart';
+import 'package:financial_management/widgets/brand_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -21,6 +22,7 @@ class ExpenseCard extends StatelessWidget {
     this.periodIndex,
     this.totalPeriods,
     this.isInstallment = false,
+    this.logoDomain,
   });
 
   final String title;
@@ -28,6 +30,7 @@ class ExpenseCard extends StatelessWidget {
   final String category;
   final DateTime dueDate;
   final Color color;
+  final String? logoDomain;
   final bool isPaid;
   final bool notifyOnDue;
   final DateTime? paidDate;
@@ -47,6 +50,73 @@ class ExpenseCard extends StatelessWidget {
     return !due.isAfter(todayDate);
   }
 
+  /// Quadrado à esquerda. Com logo, ele aparece sempre e o estado
+  /// (pago/vencido) vira um selo pequeno no canto — senão um gasto que vence
+  /// hoje já contaria como vencido e esconderia o logo. Sem logo, mantém o
+  /// selo de estado ou a bolinha da cor da categoria.
+  Widget _buildLeading() {
+    final hasLogo = (logoDomain ?? '').isNotEmpty;
+
+    if (!hasLogo) {
+      if (isPaid) {
+        return _statusTile(
+          Icons.check_circle_rounded,
+          AppTheme.incomColor.withValues(alpha: 0.8),
+        );
+      }
+      if (_isOverdue) {
+        return _statusTile(
+          Icons.warning_amber_rounded,
+          AppTheme.expenseColor.withValues(alpha: 0.9),
+        );
+      }
+      return BrandAvatar(logoDomain: null, color: color);
+    }
+
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          BrandAvatar(logoDomain: logoDomain, color: color),
+          if (isPaid || _isOverdue)
+            Positioned(right: -3, bottom: -3, child: _statusBadge()),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBadge() {
+    final paid = isPaid;
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: paid ? AppTheme.incomColor : AppTheme.expenseColor,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppTheme.surfaceColor, width: 2),
+      ),
+      child: Icon(
+        paid ? Icons.check_rounded : Icons.priority_high_rounded,
+        size: 11,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  Widget _statusTile(IconData icon, Color iconColor) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isPaid ? 0.06 : 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(child: Icon(icon, size: 20, color: iconColor)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dimmed = isPaid ? 0.4 : 1.0;
@@ -58,37 +128,8 @@ class ExpenseCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
           child: Row(
             children: [
-              // Color indicator
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: isPaid ? 0.06 : 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: isPaid
-                      ? Icon(
-                          Icons.check_circle_rounded,
-                          size: 20,
-                          color: AppTheme.incomColor.withValues(alpha: 0.8),
-                        )
-                      : _isOverdue
-                      ? Icon(
-                          Icons.warning_amber_rounded,
-                          size: 20,
-                          color: AppTheme.expenseColor.withValues(alpha: 0.9),
-                        )
-                      : Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                ),
-              ),
+              // Logo da marca / indicador de estado
+              _buildLeading(),
               const SizedBox(width: 14),
 
               // Title + category pill

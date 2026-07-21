@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/cloud_config.dart';
 import '../../services/data_import_service.dart';
 import '../../services/firebase_config.dart';
+import '../../services/logo_config.dart';
 import '../../services/notification_capture_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
@@ -16,6 +17,7 @@ import '../../widgets/responsive_body.dart';
 import '../notification_capture/notification_capture_screen.dart';
 import 'cloud_config_screen.dart';
 import 'import_review_screen.dart';
+import 'logo_config_screen.dart';
 import 'widgets/settings_section.dart';
 import 'widgets/settings_tile.dart';
 
@@ -243,6 +245,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String _logoTokenSubtitle() {
+    final cfg = LogoConfig();
+    if (cfg.hasToken && cfg.hasSecret) return 'Chaves configuradas · toque para editar';
+    if (cfg.hasToken) return 'Só imagens · falta a chave de busca (sk_)';
+    return 'Toque para configurar as chaves do logo.dev';
+  }
+
+  /// Abre a tela cheia das chaves do logo.dev (mesmo padrão da conexão com a
+  /// nuvem). Ao voltar, atualiza o subtítulo do tile.
+  Future<void> _openLogoConfig() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LogoConfigScreen()),
+    );
+    if (mounted) setState(() {});
+  }
+
   void _snack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -355,6 +374,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Importação de dados .csx lixo',
             subtitle: 'Traz a estrutura da planilha para o app',
             onTap: _importData,
+          ),
+
+          // ── Logos de marca ───────────────────────────────
+          const SettingsSection(title: 'Logos de marca'),
+          SettingsTile(
+            icon: Icons.image_outlined,
+            title: 'Token do logo.dev',
+            subtitle: _logoTokenSubtitle(),
+            onTap: _openLogoConfig,
           ),
         ],
         ),

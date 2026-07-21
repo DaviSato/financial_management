@@ -19,6 +19,7 @@ import 'services/auth_service.dart';
 import 'services/cloud_config.dart';
 import 'services/firebase_config.dart';
 import 'services/firestore_service.dart';
+import 'services/logo_config.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
@@ -49,6 +50,9 @@ void main() async {
   // Config da nuvem: app (SharedPreferences) sobrepõe o .env. Carregada aqui
   // para que FirebaseConfig possa lê-la de forma síncrona no boot.
   await CloudConfig().load();
+
+  // Token do logo.dev, mesmo esquema: app sobrepõe o .env.
+  await LogoConfig().load();
 
   FirestoreService? firestoreService;
   if (FirebaseConfig.isConfigured) {

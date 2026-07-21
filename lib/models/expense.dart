@@ -17,6 +17,11 @@ class Expense {
   final Map<String, DateTime> paidByMonth;
   final bool notifyOnDue;
 
+  /// Domínio da marca (ex.: "spotify.com") para o logo. É só uma string — o
+  /// arquivo do logo vive em disco (ver LogoService) e sincroniza por este
+  /// campo, nunca pelos bytes. Null = sem logo (cai no visual padrão).
+  final String? logoDomain;
+
   Expense({
     String? id,
     required this.amount,
@@ -30,6 +35,7 @@ class Expense {
     DateTime? createdAt,
     Map<String, DateTime>? paidByMonth,
     this.notifyOnDue = false,
+    this.logoDomain,
   }) : id = id ?? Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        paidByMonth = paidByMonth ?? {};
@@ -64,6 +70,7 @@ class Expense {
       'createdAt': createdAt.toIso8601String(),
       'paidByMonth': paidByMonth.map((k, v) => MapEntry(k, v.toIso8601String())),
       'notifyOnDue': notifyOnDue,
+      'logoDomain': logoDomain,
     };
   }
 
@@ -87,6 +94,7 @@ class Expense {
               ?.map((k, v) => MapEntry(k, DateTime.parse(v as String))) ??
           {},
       notifyOnDue: json['notifyOnDue'] as bool? ?? false,
+      logoDomain: json['logoDomain'] as String?,
     );
   }
 
@@ -118,6 +126,7 @@ class Expense {
     DateTime? createdAt,
     Map<String, DateTime>? paidByMonth,
     bool? notifyOnDue,
+    String? logoDomain,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -132,6 +141,7 @@ class Expense {
       createdAt: createdAt ?? this.createdAt,
       paidByMonth: paidByMonth ?? Map.of(this.paidByMonth),
       notifyOnDue: notifyOnDue ?? this.notifyOnDue,
+      logoDomain: logoDomain ?? this.logoDomain,
     );
   }
 
