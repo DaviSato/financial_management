@@ -74,6 +74,10 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 
 > O Firebase é **completamente opcional**. O app funciona de forma integral sem nenhuma configuração de nuvem.
 
+> 👉 **Instalou o app e quer sincronizar na nuvem sem saber programar?** Siga o
+> passo a passo para iniciantes: [**Usar o seu próprio Firebase**](docs/USAR-SEU-FIREBASE.md) —
+> desde criar a conta no Firebase até entrar no app, do zero.
+
 A integração com Firebase adiciona:
 
 - **Autenticação** — login com e-mail e senha (usuários criados manualmente no console)
