@@ -1,16 +1,19 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/expense_state.dart';
 import '../../services/auth_service.dart';
-import '../../services/firebase_config.dart';
 import '../../services/cloud_config.dart';
+import '../../services/data_import_service.dart';
+import '../../services/firebase_config.dart';
 import '../../services/notification_capture_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
 import '../notification_capture/notification_capture_screen.dart';
 import 'cloud_config_screen.dart';
+import 'import_review_screen.dart';
 import 'widgets/settings_section.dart';
 import 'widgets/settings_tile.dart';
 
@@ -195,6 +198,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Abre o seletor de arquivos, lê a planilha escolhida e leva o que foi
+  /// extraído para a tela de revisão, onde o usuário confirma a importação.
+  Future<void> _importData() async {
+    final FilePickerResult? picked;
+    try {
+      // FileType.any (não custom): no Android o filtro por extensão vira MIME
+      // type e o seletor acinzenta arquivos .xlsx/.xls cujo MIME não bate
+      // (comum em downloads). Filtramos a extensão nós mesmos, depois.
+      picked = await FilePicker.platform.pickFiles(withData: true);
+    } catch (e) {
+      if (mounted) _snack('Não foi possível abrir o seletor de arquivos.');
+      return;
+    }
+    if (picked == null || picked.files.isEmpty) return;
+
+    final file = picked.files.first;
+    final ext = (file.extension ?? '').toLowerCase();
+    if (ext != 'xlsx' && ext != 'xls') {
+      if (mounted) _snack('Escolha uma planilha .xlsx ou .xls.');
+      return;
+    }
+
+    final bytes = file.bytes;
+    if (bytes == null) {
+      if (mounted) _snack('Não consegui ler o arquivo.');
+      return;
+    }
+
+    final ImportPayload payload;
+    try {
+      payload = DataImportService().parse(bytes);
+    } catch (e) {
+      if (mounted) _snack('Arquivo inválido ou fora do formato esperado.');
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ImportReviewScreen(payload: payload)),
+    );
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Firebase ativo NESTA sessão — não apenas "há config salva". Só aqui é
@@ -276,9 +328,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: _pickNotificationTime,
           ),
 
-          // ── Importação (Android) ─────────────────────────
-          if (captureSupported) ...[
-            const SettingsSection(title: 'Importação'),
+          // ── Importação ───────────────────────────────────
+          const SettingsSection(title: 'Importação'),
+          if (captureSupported)
             SettingsTile(
               icon: Icons.notifications_paused_outlined,
               title: 'Captura de notificações',
@@ -290,7 +342,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-          ],
+          SettingsTile(
+            icon: Icons.file_download_outlined,
+            title: 'Importação de dados .csx lixo',
+            subtitle: 'Traz a estrutura da planilha para o app',
+            onTap: _importData,
+          ),
         ],
       ),
     );
