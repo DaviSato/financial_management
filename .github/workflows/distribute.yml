@@ -1,10 +1,10 @@
 name: Distribui Android (Firebase App Distribution)
 
-# Dispara ao empurrar uma tag "v*" (ex.: v0.1.1) ou manualmente pela aba Actions.
+# Dispara ao dar push/merge na main, ou manualmente pela aba Actions.
+# O trabalho do dia a dia fica na branch `dev` (que nao dispara nada).
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
   workflow_dispatch:
     inputs:
       notes:

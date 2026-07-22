@@ -5,9 +5,16 @@ builda o APK Android e distribui no Firebase App Distribution.
 
 ## Quando roda
 
-- **Ao empurrar uma tag `v*`** (ex.: `git tag v0.1.1 && git push origin v0.1.1`).
+- **Ao dar push/merge na `main`** (branch de release).
 - **Manualmente** pela aba **Actions → Distribui Android → Run workflow** (permite
   informar notas da release).
+
+O dia a dia é feito na branch **`dev`** (push livre, não dispara nada). Para
+lançar um build de teste, faça merge de `dev` → `main` e dê push na `main`:
+
+```
+git checkout main && git merge dev && git push origin main
+```
 
 O `versionCode` usa o número da execução (`run_number`) para o App Distribution
 não rejeitar builds com o mesmo código de versão. O `versionName` continua vindo
