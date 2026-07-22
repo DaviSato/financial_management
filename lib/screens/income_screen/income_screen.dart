@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/capture_bell_button.dart';
 import '../../widgets/income_form.dart';
+import '../../widgets/collapsing_header_sliver.dart';
 import '../../widgets/month_selector.dart';
 import '../../widgets/responsive_body.dart';
 
@@ -148,47 +149,27 @@ class _IncomeScreenState extends State<IncomeScreen> {
     );
   }
 
+  /// Faixa com o seletor de mês, ancorada abaixo da toolbar fixa.
+  Widget _monthHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Row(
+        children: [
+          MonthSelector(
+            selectedMonth: _selectedMonth,
+            onPrevious: _prevMonth,
+            onNext: _nextMonth,
+            onGoToToday: _goToToday,
+            onMonthTap: () => _pickMonth(context),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Rendimentos'),
-        actions: [
-          const CaptureBellButton(),
-          Consumer<PrivacyState>(
-            builder: (context, privacy, _) => IconButton(
-              tooltip: privacy.hideIncome
-                  ? 'Mostrar valores'
-                  : 'Ocultar valores',
-              icon: Icon(
-                privacy.hideIncome
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-              ),
-              onPressed: () =>
-                  context.read<PrivacyState>().toggleHideIncome(),
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                MonthSelector(
-                  selectedMonth: _selectedMonth,
-                  onPrevious: _prevMonth,
-                  onNext: _nextMonth,
-                  onGoToToday: _goToToday,
-                  onMonthTap: () => _pickMonth(context),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(context),
         icon: const Icon(Icons.add, size: 20),
@@ -201,42 +182,85 @@ class _IncomeScreenState extends State<IncomeScreen> {
             _selectedMonth,
           )..sort((a, b) => a.receiveDate.compareTo(b.receiveDate));
 
-          if (monthIncomes.isEmpty) return const EmptyState();
+          return CustomScrollView(
+            slivers: [
+              // Toolbar fixa (Rendimentos + ações) + seletor de mês
+              // colapsável que volta com snap ao rolar de volta.
+              CollapsingHeaderSliver(
+                title: const Text('Rendimentos'),
+                actions: [
+                  const CaptureBellButton(),
+                  Consumer<PrivacyState>(
+                    builder: (context, privacy, _) => IconButton(
+                      tooltip: privacy.hideIncome
+                          ? 'Mostrar valores'
+                          : 'Ocultar valores',
+                      icon: Icon(
+                        privacy.hideIncome
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      onPressed: () =>
+                          context.read<PrivacyState>().toggleHideIncome(),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                headerHeight: 58,
+                header: _monthHeader(),
+              ),
 
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
-            itemCount: monthIncomes.length,
-            itemBuilder: (context, index) {
-              final income = monthIncomes[index];
-              // A lista contém ocorrências expandidas; o original é a fonte de
-              // verdade para editar e para calcular o número da parcela.
-              final original = incomeState.incomes
-                  .where((i) => i.id == income.id)
-                  .firstOrNull;
+              // ── Lista ─────────────────────────────────────────
+              if (monthIncomes.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyState(),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
+                  sliver: SliverList.builder(
+                    itemCount: monthIncomes.length,
+                    itemBuilder: (context, index) {
+                      final income = monthIncomes[index];
+                      // A lista contém ocorrências expandidas; o original é a
+                      // fonte de verdade para editar e para calcular o número
+                      // da parcela.
+                      final original = incomeState.incomes
+                          .where((i) => i.id == income.id)
+                          .firstOrNull;
 
-              int? periodIndex;
-              int? totalPeriods;
-              if (income.recurrenceType == RecurrenceType.period &&
-                  original != null &&
-                  (original.durationMonths ?? 0) > 1) {
-                periodIndex =
-                    monthsBetween(original.receiveDate, income.receiveDate) + 1;
-                totalPeriods = original.durationMonths;
-              }
+                      int? periodIndex;
+                      int? totalPeriods;
+                      if (income.recurrenceType == RecurrenceType.period &&
+                          original != null &&
+                          (original.durationMonths ?? 0) > 1) {
+                        periodIndex =
+                            monthsBetween(
+                              original.receiveDate,
+                              income.receiveDate,
+                            ) +
+                            1;
+                        totalPeriods = original.durationMonths;
+                      }
 
-              return IncomeCard(
-                title: income.title,
-                amount: income.amount,
-                receiveDate: income.receiveDate,
-                recurrenceLabel: _recurrenceLabel(income),
-                periodIndex: periodIndex,
-                totalPeriods: totalPeriods,
-                hideAmount: privacy.hideIncome,
-                onEdit: () => _openForm(context, income: original ?? income),
-                onDelete: () =>
-                    _confirmDelete(context, income.id, income.title),
-              );
-            },
+                      return IncomeCard(
+                        title: income.title,
+                        amount: income.amount,
+                        receiveDate: income.receiveDate,
+                        recurrenceLabel: _recurrenceLabel(income),
+                        periodIndex: periodIndex,
+                        totalPeriods: totalPeriods,
+                        hideAmount: privacy.hideIncome,
+                        onEdit: () =>
+                            _openForm(context, income: original ?? income),
+                        onDelete: () =>
+                            _confirmDelete(context, income.id, income.title),
+                      );
+                    },
+                  ),
+                ),
+            ],
           );
         },
         ),

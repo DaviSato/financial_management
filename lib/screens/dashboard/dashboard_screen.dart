@@ -14,6 +14,7 @@ import '../../providers/income_state.dart';
 import '../../providers/privacy_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/capture_bell_button.dart';
+import '../../widgets/collapsing_header_sliver.dart';
 import '../../widgets/month_selector.dart';
 import '../../widgets/responsive_body.dart';
 
@@ -59,47 +60,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return match?.color ?? AppTheme.chartColors()[index % 8];
   }
 
+  /// Faixa com o seletor de mês, ancorada abaixo da toolbar fixa.
+  Widget _monthHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Row(
+        children: [
+          MonthSelector(
+            selectedMonth: _selectedMonth,
+            onPrevious: _prevMonth,
+            onNext: _nextMonth,
+            onGoToToday: _goToToday,
+            onMonthTap: () => _pickMonth(context),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Painel'),
-        actions: [
-          const CaptureBellButton(),
-          Consumer<PrivacyState>(
-            builder: (context, privacy, _) => IconButton(
-              tooltip: privacy.hideIncome
-                  ? 'Mostrar valores'
-                  : 'Ocultar valores',
-              icon: Icon(
-                privacy.hideIncome
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-              ),
-              onPressed: () =>
-                  context.read<PrivacyState>().toggleHideIncome(),
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                MonthSelector(
-                  selectedMonth: _selectedMonth,
-                  onPrevious: _prevMonth,
-                  onNext: _nextMonth,
-                  onGoToToday: _goToToday,
-                  onMonthTap: () => _pickMonth(context),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
       body: ResponsiveBody(
         // Mais largo que as demais telas: comporta o card de saldo e o gráfico
         // lado a lado em janelas de desktop (ver _HeroAndChart).
@@ -117,37 +98,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final raw = DateFormat('MMMM yyyy', 'pt_BR').format(_selectedMonth);
           final monthLabel = raw[0].toUpperCase() + raw.substring(1);
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Saldo + gráfico (lado a lado no desktop) ───
-                _HeroAndChart(
-                  income: income,
-                  expenses: expenses,
-                  balance: balance,
-                  monthLabel: monthLabel,
-                  hidePrivate: hidePrivate,
-                  expensesByCategory: expensesByCategory,
-                  categories: categories,
-                  colorForCategory: _colorForCategory,
-                ),
-                const SizedBox(height: 24),
-
-                // ── Expenses by Category ──────────────────────
-                if (expensesByCategory.isNotEmpty) ...[
-                  SectionHeader(title: 'Gastos por Categoria'),
-                  const SizedBox(height: 16),
-                  CategoryBreakdown(
-                    expensesByCategory: expensesByCategory,
-                    categories: categories,
-                    colorForCategory: _colorForCategory,
+          return CustomScrollView(
+            slivers: [
+              // Toolbar fixa (Painel + ações) + seletor de mês colapsável
+              // que volta com snap ao rolar de volta.
+              CollapsingHeaderSliver(
+                title: const Text('Painel'),
+                actions: [
+                  const CaptureBellButton(),
+                  Consumer<PrivacyState>(
+                    builder: (context, privacy, _) => IconButton(
+                      tooltip: privacy.hideIncome
+                          ? 'Mostrar valores'
+                          : 'Ocultar valores',
+                      icon: Icon(
+                        privacy.hideIncome
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      onPressed: () =>
+                          context.read<PrivacyState>().toggleHideIncome(),
+                    ),
                   ),
-                ] else if (income == 0 && expenses == 0)
-                  const EmptyChart(),
-              ],
-            ),
+                  const SizedBox(width: 4),
+                ],
+                headerHeight: 58,
+                header: _monthHeader(),
+              ),
+
+              // ── Conteúdo ──────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Saldo + gráfico (lado a lado no desktop) ─
+                      _HeroAndChart(
+                        income: income,
+                        expenses: expenses,
+                        balance: balance,
+                        monthLabel: monthLabel,
+                        hidePrivate: hidePrivate,
+                        expensesByCategory: expensesByCategory,
+                        categories: categories,
+                        colorForCategory: _colorForCategory,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Expenses by Category ────────────────────
+                      if (expensesByCategory.isNotEmpty) ...[
+                        SectionHeader(title: 'Gastos por Categoria'),
+                        const SizedBox(height: 16),
+                        CategoryBreakdown(
+                          expensesByCategory: expensesByCategory,
+                          categories: categories,
+                          colorForCategory: _colorForCategory,
+                        ),
+                      ] else if (income == 0 && expenses == 0)
+                        const EmptyChart(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           );
         },
         ),

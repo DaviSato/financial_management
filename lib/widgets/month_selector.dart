@@ -55,23 +55,15 @@ class MonthSelector extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _NavButton(icon: Icons.chevron_left, onPressed: onPrevious),
-              GestureDetector(
-                onTap: onMonthTap,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: labelColor,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.1,
-                    ),
-                  ),
-                ),
+              _NavButton(
+                icon: Icons.chevron_left_rounded,
+                onPressed: onPrevious,
               ),
-              _NavButton(icon: Icons.chevron_right, onPressed: onNext),
+              _MonthLabel(label: label, color: labelColor, onTap: onMonthTap),
+              _NavButton(
+                icon: Icons.chevron_right_rounded,
+                onPressed: onNext,
+              ),
             ],
           ),
         ),
@@ -84,34 +76,94 @@ class MonthSelector extends StatelessWidget {
   }
 }
 
+/// Rótulo central do seletor: mostra o mês e um caret indicando que ao tocar
+/// abre o seletor de mês/ano.
+class _MonthLabel extends StatelessWidget {
+  const _MonthLabel({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          height: 44,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+                const SizedBox(width: 3),
+                Icon(
+                  Icons.expand_more_rounded,
+                  size: 16,
+                  color: color.withValues(alpha: 0.45),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Atalho para voltar ao mês atual. Só aparece quando outro mês está
+/// selecionado; o tint primário sinaliza a ação de "pular para hoje".
 class _TodayButton extends StatelessWidget {
   const _TodayButton({required this.onPressed});
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceVariant,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            color: primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: primary.withValues(alpha: 0.28)),
           ),
-          alignment: Alignment.center,
-          child: Text(
-            'Hoje',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.today_rounded, size: 15, color: primary),
+              const SizedBox(width: 5),
+              Text(
+                'Hoje',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -132,9 +184,9 @@ class _NavButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(12),
         child: SizedBox(
-          width: 44,
+          width: 40,
           height: 44,
-          child: Icon(icon, size: 20, color: Colors.white60),
+          child: Icon(icon, size: 22, color: Colors.white54),
         ),
       ),
     );
