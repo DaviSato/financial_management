@@ -60,14 +60,13 @@ jobs:
 
       - name: Distribui no Firebase App Distribution
         env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          # firebase-tools usa FIREBASE_TOKEN do ambiente automaticamente.
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           FIREBASE_GROUPS: ${{ vars.FIREBASE_GROUPS }}
           INPUT_NOTES: ${{ github.event.inputs.notes }}
         run: |
           set -euo pipefail
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
           GROUPS="${FIREBASE_GROUPS:-testers}"
           NOTES="${INPUT_NOTES:-Build $GITHUB_REF_NAME ($GITHUB_SHA)}"
           npx -y firebase-tools@latest appdistribution:distribute \

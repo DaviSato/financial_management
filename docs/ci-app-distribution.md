@@ -15,13 +15,20 @@ do `version:` do `pubspec.yaml` — bump ele quando quiser mudar o nome da vers�
 
 ## Configuração (uma vez)
 
-### 1. Service account do Firebase
+### 1. Token do Firebase CLI
 
-1. Firebase Console → ⚙️ **Configurações do projeto → Contas de serviço →
-   Gerenciar permissões da conta de serviço** (abre o Google Cloud IAM).
-2. Crie uma service account (ou use uma existente) e conceda o papel
-   **Firebase App Distribution Admin**.
-3. Em **Chaves → Adicionar chave → JSON**, baixe o arquivo.
+Num terminal **interativo** (fora do Claude Code, que roda sem TTY), rode:
+
+```
+npx -y firebase-tools@latest login:ci
+```
+
+Autorize no navegador; ao final ele imprime um **token** (`1//0...`). Esse token
+vai no secret `FIREBASE_TOKEN`.
+
+> Alternativa mais robusta (não deprecada): uma **service account** com o papel
+> *Firebase App Distribution Admin* e auth via `GOOGLE_APPLICATION_CREDENTIALS`.
+> O `login:ci` é mais simples, mas o Google marca o token de CI como deprecado.
 
 ### 2. App ID
 
@@ -41,12 +48,12 @@ Firebase Console → **App Distribution → Testadores e grupos** → crie um gr
 
 Repositório → **Settings → Secrets and variables → Actions**:
 
-| Tipo     | Nome                       | Valor                                                    |
-|----------|----------------------------|----------------------------------------------------------|
-| Secret   | `FIREBASE_SERVICE_ACCOUNT` | Conteúdo **inteiro** do JSON da service account          |
-| Secret   | `FIREBASE_APP_ID`          | O App ID (`1:NNN:android:XXX`)                           |
-| Variable | `FIREBASE_GROUPS`          | Grupo(s) de testers (opcional; padrão `testers`)         |
-| Secret   | `ENV_FILE`                 | Conteúdo do `.env` (opcional — ver abaixo)               |
+| Tipo     | Nome              | Valor                                                    |
+|----------|-------------------|----------------------------------------------------------|
+| Secret   | `FIREBASE_TOKEN`  | Token gerado por `firebase login:ci`                     |
+| Secret   | `FIREBASE_APP_ID` | O App ID (`1:NNN:android:XXX`)                           |
+| Variable | `FIREBASE_GROUPS` | Alias do(s) grupo(s) de testers (opcional; padrão `testers`) |
+| Secret   | `ENV_FILE`        | Conteúdo do `.env` (opcional — ver abaixo)               |
 
 ## Sobre o `.env`
 
