@@ -66,11 +66,26 @@ jobs:
           FIREBASE_GROUPS: ${{ vars.FIREBASE_GROUPS }}
           INPUT_NOTES: ${{ github.event.inputs.notes }}
         run: |
-          set -euo pipefail
-          GROUPS="${FIREBASE_GROUPS:-testers}"
+          set -uo pipefail
+          # tr remove qualquer espaco/quebra-de-linha invisivel no App ID/grupo.
+          APP_ID="$(printf '%s' "${FIREBASE_APP_ID}" | tr -d '[:space:]')"
+          GROUPS="$(printf '%s' "${FIREBASE_GROUPS:-testers}" | tr -d '[:space:]')"
           NOTES="${INPUT_NOTES:-Build $GITHUB_REF_NAME ($GITHUB_SHA)}"
-          npx -y firebase-tools@latest appdistribution:distribute \
-            "build/app/outputs/flutter-apk/app-release.apk" \
-            --app "$FIREBASE_APP_ID" \
-            --groups "$GROUPS" \
-            --release-notes "$NOTES"
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          # Retry: o :distribute pode dar 404 transitorio logo apos o upload
+          # (release ainda propagando). O firebase-tools reaproveita o release
+          # pelo hash do APK, entao a re-tentativa nao re-faz upload.
+          for attempt in 1 2 3; do
+            echo "::group::Distribuicao - tentativa $attempt"
+            if npx -y firebase-tools@latest appdistribution:distribute \
+                "$APK" --app "$APP_ID" --groups "$GROUPS" --release-notes "$NOTES"; then
+              echo "::endgroup::"
+              echo "Distribuido com sucesso na tentativa $attempt."
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "Tentativa $attempt falhou; aguardando 20s..."
+            sleep 20
+          done
+          echo "Falhou apos 3 tentativas."
+          exit 1
