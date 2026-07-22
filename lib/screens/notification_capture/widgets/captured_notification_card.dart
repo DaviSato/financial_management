@@ -34,6 +34,11 @@ class CapturedNotificationCard extends StatelessWidget {
     final n = notification;
 
     return Card(
+      // Quadrado e sem borda própria: o arredondamento e a borda vêm da moldura
+      // externa (SwipeableCardFrame), para o card deslizar com borda de fuga
+      // reta e não vazar o fundo do swipe nos cantos.
+      margin: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(

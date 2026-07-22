@@ -14,6 +14,8 @@ import '../../widgets/income_form.dart';
 import '../../widgets/collapsing_header_sliver.dart';
 import '../../widgets/month_selector.dart';
 import '../../widgets/responsive_body.dart';
+import '../../widgets/swipe_delete_background.dart';
+import '../../widgets/swipeable_card_frame.dart';
 
 class IncomeScreen extends StatefulWidget {
   const IncomeScreen({super.key});
@@ -234,18 +236,33 @@ class _IncomeScreenState extends State<IncomeScreen> {
                         totalPeriods = original.durationMonths;
                       }
 
-                      return IncomeCard(
-                        title: income.title,
-                        amount: income.amount,
-                        receiveDate: income.receiveDate,
-                        recurrenceLabel: _recurrenceLabel(income),
-                        periodIndex: periodIndex,
-                        totalPeriods: totalPeriods,
-                        hideAmount: privacy.hideIncome,
-                        onEdit: () =>
-                            _openForm(context, income: original ?? income),
-                        onDelete: () =>
-                            _confirmDelete(context, income.id, income.title),
+                      // Direita→esquerda exclui, como nas outras telas. Moldura
+                      // arredondada por fora; só o card quadrado desliza.
+                      return SwipeableCardFrame(
+                        child: Dismissible(
+                          key: ValueKey('${income.id}_${income.receiveDate}'),
+                          direction: DismissDirection.endToStart,
+                          background: const SwipeDeleteBackground(),
+                          onDismissed: (_) => context
+                              .read<IncomeState>()
+                              .deleteIncome(income.id),
+                          child: IncomeCard(
+                            title: income.title,
+                            amount: income.amount,
+                            receiveDate: income.receiveDate,
+                            recurrenceLabel: _recurrenceLabel(income),
+                            periodIndex: periodIndex,
+                            totalPeriods: totalPeriods,
+                            hideAmount: privacy.hideIncome,
+                            onEdit: () =>
+                                _openForm(context, income: original ?? income),
+                            onDelete: () => _confirmDelete(
+                              context,
+                              income.id,
+                              income.title,
+                            ),
+                          ),
+                        ),
                       );
                     },
                   ),

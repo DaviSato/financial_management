@@ -14,6 +14,8 @@ import '../../widgets/expense_form.dart';
 import '../../widgets/collapsing_header_sliver.dart';
 import '../../widgets/month_selector.dart';
 import '../../widgets/responsive_body.dart';
+import '../../widgets/swipe_delete_background.dart';
+import '../../widgets/swipeable_card_frame.dart';
 import '../category_management/category_management_screen.dart';
 
 class ExpenseScreen extends StatefulWidget {
@@ -259,19 +261,33 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                           }
                         }
 
-                        return Dismissible(
+                        // Moldura arredondada (com borda) por fora do
+                        // Dismissible: fica parada; só o card quadrado desliza,
+                        // revelando o fundo do swipe sem vazar nos cantos.
+                        return SwipeableCardFrame(
+                          child: Dismissible(
                           key: ValueKey('${expense.id}_${expense.dueDate}'),
-                          direction: DismissDirection.startToEnd,
+                          direction: DismissDirection.horizontal,
                           background: _PaidSwipeBackground(isPaid: isPaid),
-                          // Marcar pago não remove o card — só muda o estado.
-                          // confirmDismiss faz a ação e devolve false, então o
-                          // card volta e é reconstruído já como pago.
-                          confirmDismiss: (_) async {
-                            await context
-                                .read<ExpenseState>()
-                                .toggleExpensePaid(expense.id, _selectedMonth);
-                            return false;
+                          secondaryBackground: const SwipeDeleteBackground(),
+                          // Esquerda→direita marca/desmarca pago (não remove o
+                          // card, devolve false). Direita→esquerda exclui o
+                          // gasto, como na tela de notificações.
+                          confirmDismiss: (direction) async {
+                            if (direction == DismissDirection.startToEnd) {
+                              await context
+                                  .read<ExpenseState>()
+                                  .toggleExpensePaid(
+                                    expense.id,
+                                    _selectedMonth,
+                                  );
+                              return false;
+                            }
+                            return true;
                           },
+                          onDismissed: (_) => context
+                              .read<ExpenseState>()
+                              .deleteExpense(expense.id),
                           child: ExpenseCard(
                             title: expense.title,
                             amount: expense.amount,
@@ -305,6 +321,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                               expense.title,
                             ),
                           ),
+                          ),
                         );
                       },
                     ),
@@ -329,13 +346,11 @@ class _PaidSwipeBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isPaid ? const Color(0xFF6E6E78) : AppTheme.incomColor;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
+      // Fundo sólido; o card quadrado desliza sobre ele dentro da moldura com
+      // clip (SwipeableCardFrame), então nada vaza nos cantos.
       padding: const EdgeInsets.symmetric(horizontal: 20),
       alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      color: color.withValues(alpha: 0.15),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

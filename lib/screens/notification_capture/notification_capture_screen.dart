@@ -12,6 +12,8 @@ import '../../services/transaction_parser.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/expense_form.dart';
 import '../../widgets/income_form.dart';
+import '../../widgets/swipe_delete_background.dart';
+import '../../widgets/swipeable_card_frame.dart';
 import 'notification_capture_config_screen.dart';
 import 'widgets/captured_notification_card.dart';
 import 'widgets/permission_banner.dart';
@@ -242,13 +244,12 @@ class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
                       ),
                     ),
                     for (final group in groups)
-                      Dismissible(
-                        key: ValueKey(group.representative.filePath),
-                        direction: DismissDirection.endToStart,
-                        onDismissed: (_) => _deleteGroup(group),
-                        background: const _DismissBackground(),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      SwipeableCardFrame(
+                        child: Dismissible(
+                          key: ValueKey(group.representative.filePath),
+                          direction: DismissDirection.endToStart,
+                          onDismissed: (_) => _deleteGroup(group),
+                          background: const SwipeDeleteBackground(),
                           child: CapturedNotificationCard(
                             notification: group.representative,
                             parsed: group.parsed,
@@ -260,28 +261,6 @@ class _NotificationCaptureScreenState extends State<NotificationCaptureScreen>
                 ],
               ),
             ),
-    );
-  }
-}
-
-/// Fundo vermelho revelado ao deslizar o card para apagar.
-class _DismissBackground extends StatelessWidget {
-  const _DismissBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      alignment: Alignment.centerRight,
-      decoration: BoxDecoration(
-        color: AppTheme.expenseColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Icon(
-        Icons.delete_outline_rounded,
-        color: AppTheme.expenseColor,
-      ),
     );
   }
 }
