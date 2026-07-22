@@ -1,0 +1,77 @@
+name: Distribui Android (Firebase App Distribution)
+
+# Dispara ao empurrar uma tag "v*" (ex.: v0.1.1) ou manualmente pela aba Actions.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 'Notas da release (opcional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.4
+          channel: stable
+          cache: true
+
+      # O pubspec declara `.env` como asset; ele é gitignored, então precisa ser
+      # recriado aqui senão o build falha. Vazio já basta — a config do Firebase
+      # entra em runtime pelo CloudConfig. Para builds pré-configurados, defina o
+      # secret ENV_FILE com o conteúdo do .env.
+      - name: Cria .env
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: printf '%s' "$ENV_FILE" > .env
+
+      - name: Dependências
+        run: flutter pub get
+
+      - name: Análise
+        run: flutter analyze
+
+      - name: Testes
+        run: flutter test
+
+      # build-number vem do run_number para o App Distribution não rejeitar
+      # versionCode duplicado a cada release.
+      - name: Build APK
+        run: flutter build apk --release --build-number=${{ github.run_number }}
+
+      - name: Distribui no Firebase App Distribution
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_GROUPS: ${{ vars.FIREBASE_GROUPS }}
+          INPUT_NOTES: ${{ github.event.inputs.notes }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          GROUPS="${FIREBASE_GROUPS:-testers}"
+          NOTES="${INPUT_NOTES:-Build $GITHUB_REF_NAME ($GITHUB_SHA)}"
+          npx -y firebase-tools@latest appdistribution:distribute \
+            "build/app/outputs/flutter-apk/app-release.apk" \
+            --app "$FIREBASE_APP_ID" \
+            --groups "$GROUPS" \
+            --release-notes "$NOTES"
