@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../theme/app_theme.dart';
-
 class MonthSelector extends StatelessWidget {
   const MonthSelector({
     super.key,
     required this.selectedMonth,
     required this.onPrevious,
     required this.onNext,
-    required this.onGoToToday,
     required this.onMonthTap,
   });
 
   final DateTime selectedMonth;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
-  final VoidCallback onGoToToday;
   final VoidCallback onMonthTap;
 
   static Future<DateTime?> showPicker(BuildContext context, DateTime selected) {
@@ -41,138 +37,74 @@ class MonthSelector extends StatelessWidget {
     final raw = DateFormat('MMMM yyyy', 'pt_BR').format(selectedMonth);
     final label = raw[0].toUpperCase() + raw.substring(1);
 
-    final Color labelColor = _isPastMonth ? Colors.white38 : Colors.white;
+    final primary = Theme.of(context).colorScheme.primary;
+    // Hierarquia: mês atual em destaque (azul + bolinha), passado esmaecido,
+    // futuro em branco normal.
+    final bool isCurrent = _isCurrentMonth;
+    final Color labelColor = isCurrent
+        ? primary
+        : (_isPastMonth ? Colors.white38 : Colors.white);
 
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceVariant,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _NavButton(
-                icon: Icons.chevron_left_rounded,
-                onPressed: onPrevious,
+        _GhostChevron(icon: Icons.chevron_left_rounded, onPressed: onPrevious),
+        Expanded(
+          child: Center(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onMonthTap,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isCurrent) ...[
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                      ],
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: labelColor,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.expand_more_rounded,
+                        size: 18,
+                        color: labelColor.withValues(alpha: 0.45),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              _MonthLabel(label: label, color: labelColor, onTap: onMonthTap),
-              _NavButton(
-                icon: Icons.chevron_right_rounded,
-                onPressed: onNext,
-              ),
-            ],
+            ),
           ),
         ),
-        if (!_isCurrentMonth) ...[
-          const SizedBox(width: 8),
-          _TodayButton(onPressed: onGoToToday),
-        ],
+        _GhostChevron(icon: Icons.chevron_right_rounded, onPressed: onNext),
       ],
     );
   }
 }
 
-/// Rótulo central do seletor: mostra o mês e um caret indicando que ao tocar
-/// abre o seletor de mês/ano.
-class _MonthLabel extends StatelessWidget {
-  const _MonthLabel({
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          height: 44,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: color,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.1,
-                  ),
-                ),
-                const SizedBox(width: 3),
-                Icon(
-                  Icons.expand_more_rounded,
-                  size: 16,
-                  color: color.withValues(alpha: 0.45),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Atalho para voltar ao mês atual. Só aparece quando outro mês está
-/// selecionado; o tint primário sinaliza a ação de "pular para hoje".
-class _TodayButton extends StatelessWidget {
-  const _TodayButton({required this.onPressed});
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: primary.withValues(alpha: 0.28)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.today_rounded, size: 15, color: primary),
-              const SizedBox(width: 5),
-              Text(
-                'Hoje',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavButton extends StatelessWidget {
-  const _NavButton({required this.icon, required this.onPressed});
+/// Chevron "fantasma": sem fundo, só o ícone com ripple circular ao tocar.
+class _GhostChevron extends StatelessWidget {
+  const _GhostChevron({required this.icon, required this.onPressed});
   final IconData icon;
   final VoidCallback onPressed;
 
@@ -180,13 +112,14 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
         child: SizedBox(
           width: 40,
-          height: 44,
-          child: Icon(icon, size: 22, color: Colors.white54),
+          height: 40,
+          child: Icon(icon, size: 24, color: Colors.white38),
         ),
       ),
     );

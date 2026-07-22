@@ -40,11 +40,6 @@ class _IncomeScreenState extends State<IncomeScreen> {
     _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
   });
 
-  void _goToToday() {
-    final now = DateTime.now();
-    setState(() => _selectedMonth = DateTime(now.year, now.month, 1));
-  }
-
   void _pickMonth(BuildContext context) async {
     final picked = await MonthSelector.showPicker(context, _selectedMonth);
     if (picked != null) {
@@ -153,16 +148,11 @@ class _IncomeScreenState extends State<IncomeScreen> {
   Widget _monthHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Row(
-        children: [
-          MonthSelector(
-            selectedMonth: _selectedMonth,
-            onPrevious: _prevMonth,
-            onNext: _nextMonth,
-            onGoToToday: _goToToday,
-            onMonthTap: () => _pickMonth(context),
-          ),
-        ],
+      child: MonthSelector(
+        selectedMonth: _selectedMonth,
+        onPrevious: _prevMonth,
+        onNext: _nextMonth,
+        onMonthTap: () => _pickMonth(context),
       ),
     );
   }
