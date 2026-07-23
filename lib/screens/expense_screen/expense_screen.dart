@@ -66,8 +66,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, String id, String title) {
-    showDialog(
+  /// Mostra o diálogo de confirmação e resolve para `true` se o usuário
+  /// confirmar a exclusão. Reutilizado tanto pelo botão do card quanto pelo
+  /// swipe (direita→esquerda).
+  Future<bool> _confirmDelete(BuildContext context, String title) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         icon: Container(
@@ -105,7 +108,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => Navigator.pop(dialogContext),
+                  onPressed: () => Navigator.pop(dialogContext, false),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(0, 42),
                   ),
@@ -119,10 +122,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     backgroundColor: AppTheme.expenseColor,
                     minimumSize: const Size(0, 42),
                   ),
-                  onPressed: () {
-                    context.read<ExpenseState>().deleteExpense(id);
-                    Navigator.pop(dialogContext);
-                  },
+                  onPressed: () => Navigator.pop(dialogContext, true),
                   child: const Text('Excluir'),
                 ),
               ),
@@ -131,6 +131,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         ],
       ),
     );
+    return confirmed ?? false;
   }
 
   @override
@@ -283,7 +284,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                                   );
                               return false;
                             }
-                            return true;
+                            // Direita→esquerda: confirma antes de excluir.
+                            return _confirmDelete(context, expense.title);
                           },
                           onDismissed: (_) => context
                               .read<ExpenseState>()
@@ -315,11 +317,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                                   .firstOrNull;
                               _openForm(context, expense: original ?? expense);
                             },
-                            onDelete: () => _confirmDelete(
-                              context,
-                              expense.id,
-                              expense.title,
-                            ),
+                            onDelete: () async {
+                              final confirmed = await _confirmDelete(
+                                context,
+                                expense.title,
+                              );
+                              if (confirmed && context.mounted) {
+                                context.read<ExpenseState>().deleteExpense(
+                                  expense.id,
+                                );
+                              }
+                            },
                           ),
                           ),
                         );

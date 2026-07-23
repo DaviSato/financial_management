@@ -33,12 +33,17 @@ class IncomeExpenseChart extends StatelessWidget {
     final categoryEntries = expensesByCategory.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // One green section for income + one section per expense category
+    // O círculo inteiro representa a renda: os gastos ocupam sua fração dela.
+    // A fatia verde "lavada" é o que sobrou (saldo), então renda 1000 com
+    // gastos 800 → as categorias tomam 80% do donut e restam 20% de verde.
+    // Se os gastos superam a renda não há sobra: o donut fica só com as
+    // categorias e o saldo aparece negativo no centro.
+    final remainingIncome = income - expenses;
     final sections = <PieChartSectionData>[
-      if (income > 0)
+      if (remainingIncome > 0)
         PieChartSectionData(
           color: AppTheme.incomColor.withValues(alpha: 0.2),
-          value: income,
+          value: remainingIncome,
           title: '',
           radius: 36,
         ),
