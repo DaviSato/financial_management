@@ -11,6 +11,11 @@ import '../utils/currency_formatter.dart';
 import 'category_form_dialog.dart';
 import 'logo_picker_field.dart';
 
+const _monthNames = [
+  'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+  'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
+];
+
 class ExpenseFormDialog extends StatefulWidget {
   final Expense? expense;
   final Function(Expense) onSave;
@@ -20,11 +25,19 @@ class ExpenseFormDialog extends StatefulWidget {
   /// então o cabeçalho deve dizer "Novo Gasto", não "Editar".
   final bool? isEditing;
 
+  /// Mês a que o "marcar como pago" se refere. Um gasto recorrente é pago mês a
+  /// mês (ver [Expense.paidByMonth]), e a edição recebe o gasto *original* — a
+  /// data de vencimento dele não diz qual mês o usuário está olhando. Quem abre
+  /// o formulário a partir de uma lista mensal passa o mês selecionado; quando
+  /// nulo, cai no mês do próprio vencimento.
+  final DateTime? referenceMonth;
+
   const ExpenseFormDialog({
     super.key,
     this.expense,
     required this.onSave,
     this.isEditing,
+    this.referenceMonth,
   });
 
   @override
@@ -43,6 +56,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
   late int _durationMonths;
   PaymentMethod? _paymentMethod;
   late bool _notifyOnDue;
+  late bool _isPaid;
   String? _logoDomain;
 
   @override
@@ -65,6 +79,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
     _durationMonths = e?.durationMonths ?? 1;
     _paymentMethod = e?.paymentMethod;
     _notifyOnDue = e?.notifyOnDue ?? false;
+    _isPaid = e?.isPaidForMonth(widget.referenceMonth ?? _selectedDate) ?? false;
   }
 
   @override
@@ -110,6 +125,27 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
     if (picked != null) setState(() => _selectedDay = picked);
   }
 
+  /// Mês a que a marcação de pago se aplica: o mês que a tela estava exibindo
+  /// ou, na falta dele (gasto novo), o mês do vencimento sendo salvo.
+  DateTime get _paidMonth => widget.referenceMonth ?? _selectedDate;
+
+  /// Só faz sentido falar em "qual mês" quando o gasto se repete — num gasto
+  /// único a chave é sempre `'once'`.
+  bool get _isRecurring => _recurrenceType != RecurrenceType.once;
+
+  String _paidSubtitle() {
+    final paidDate = widget.expense?.paidDateForMonth(_paidMonth);
+    if (_isPaid && paidDate != null) {
+      final d = paidDate.day.toString().padLeft(2, '0');
+      final m = paidDate.month.toString().padLeft(2, '0');
+      return 'Pago em $d/$m/${paidDate.year}';
+    }
+    if (_isRecurring) {
+      return 'Vale só para ${_monthNames[_paidMonth.month - 1]}/${_paidMonth.year}';
+    }
+    return 'Marque quando este gasto for quitado';
+  }
+
   Color _categoryColor() {
     final categories = context.read<CategoryState>().categories;
     for (final c in categories) {
@@ -153,6 +189,21 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
         ? _selectedDate
         : DateTime(_selectedDate.year, _selectedDate.month, _selectedDay);
 
+    // Mantém os outros meses intactos e mexe só na chave deste. O `??=`
+    // preserva a data em que o gasto já havia sido marcado — reabrir e salvar
+    // o formulário não deve reescrever esse carimbo para agora.
+    final paidByMonth = Map<String, DateTime>.of(
+      widget.expense?.paidByMonth ?? const {},
+    );
+    final paidKey = _recurrenceType == RecurrenceType.once
+        ? 'once'
+        : '${_paidMonth.year}-${_paidMonth.month.toString().padLeft(2, '0')}';
+    if (_isPaid) {
+      paidByMonth[paidKey] ??= DateTime.now();
+    } else {
+      paidByMonth.remove(paidKey);
+    }
+
     widget.onSave(
       Expense(
         id: widget.expense?.id,
@@ -168,7 +219,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
             : null,
         paymentMethod: _paymentMethod,
         notifyOnDue: _notifyOnDue,
-        paidByMonth: widget.expense?.paidByMonth,
+        paidByMonth: paidByMonth,
         logoDomain: _logoDomain,
       ),
     );
@@ -349,6 +400,23 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
                         prefixIcon: Icon(Icons.today_outlined),
                       ),
                     ),
+
+                  // Marcar pago aqui evita ter que salvar, voltar para a lista
+                  // e deslizar o card só para quitar o gasto.
+                  const SizedBox(height: 4),
+                  SwitchListTile(
+                    value: _isPaid,
+                    onChanged: (v) => setState(() => _isPaid = v),
+                    secondary: Icon(
+                      _isPaid
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      color: _isPaid ? AppTheme.incomColor : Colors.white38,
+                    ),
+                    title: const Text('Marcar como pago'),
+                    subtitle: Text(_paidSubtitle()),
+                    contentPadding: EdgeInsets.zero,
+                  ),
 
                   // ── Recorrência ──────────────────────────────
                   const SizedBox(height: 24),
