@@ -58,6 +58,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       MaterialPageRoute(
         builder: (_) => ExpenseFormDialog(
           expense: expense,
+          referenceMonth: _selectedMonth,
           onSave: (e) => expense == null
               ? context.read<ExpenseState>().addExpense(e)
               : context.read<ExpenseState>().updateExpense(e),
