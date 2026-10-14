@@ -20,8 +20,4 @@ class PlatformCapabilities {
   static bool get supportsScheduledNotifications =>
       _isMobile || (!kIsWeb && Platform.isWindows);
 
-  /// Captura de notificações de outros apps: só o Android expõe API para isso.
-  /// Espelha [NotificationCaptureService.isSupported].
-  static bool get supportsNotificationCapture =>
-      !kIsWeb && Platform.isAndroid;
 }

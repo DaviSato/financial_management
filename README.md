@@ -9,7 +9,6 @@
   ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=flat-square&logo=dart)
   ![Firebase](https://img.shields.io/badge/Firebase-opcional-FFCA28?style=flat-square&logo=firebase&logoColor=black)
   ![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey?style=flat-square)
-  ![Importação por notificações](https://img.shields.io/badge/Importa%C3%A7%C3%A3o%20por%20notifica%C3%A7%C3%B5es-somente%20Android-3DDC84?style=flat-square&logo=android&logoColor=white)
 </div>
 
 ---
@@ -46,17 +45,8 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 - Navegação por mês
 - **Ocultar valores** — o mesmo olho mascara rendimento e saldo (mantendo os gastos visíveis)
 
-### Importação por notificações do banco _(Android)_
-- Captura notificações de apps de banco (ex: Nubank) e as apresenta para você lançar como gasto ou rendimento
-- **Parser por palavra-chave**, agnóstico de banco: valor pelo `R$`, tipo por débito/crédito/pix, ignora compras negadas e estornos
-- **Sempre com confirmação** — cada notificação vira um lançamento só quando você confirma pelo formulário; nada é criado automaticamente, para não duplicar o que já existe (recorrentes, parcelados)
-- **Modo descoberta** para identificar o app do banco registrando apenas o nome dos apps, sem conteúdo
-- **Sino com contador** de capturas pendentes nas abas principais, para você não esquecer de revisar
-- **Gestos na lista** — deslize para apagar uma captura, ou "limpar tudo" de uma vez
-- Serviço nativo em Kotlin, roda com o app fechado; nada é interpretado no lado nativo
-
 ### Perfil / Configurações
-- Aba própria que reúne conta, notificações, importação e conexão à nuvem
+- Aba própria que reúne conta, notificações e conexão à nuvem
 - Horário do aviso de vencimentos configurável
 - Conectar / editar / restaurar a conexão com a nuvem
 
@@ -196,8 +186,7 @@ flutter run
 ```
 lib/
 ├── main.dart                     # Inicialização, Firebase opcional, MultiProvider
-├── models/                       # Expense, Income, Category, PaymentMethod,
-│                                 #   CapturedNotification, ParsedTransaction, enums
+├── models/                       # Expense, Income, Category, PaymentMethod, enums
 ├── providers/
 │   ├── expense_state.dart        # CRUD de gastos, computed helpers por mês
 │   ├── income_state.dart         # CRUD de rendimentos, computed helpers por mês
@@ -208,7 +197,6 @@ lib/
 │   ├── expense_screen/           # expense_screen + widgets (expense_card, filter_bar, sort_button, ...)
 │   ├── income_screen/            # income_screen + widgets (income_card, empty_state)
 │   ├── category_management/      # category_management_screen + widgets
-│   ├── notification_capture/     # tela de captura + parse + widgets (Android)
 │   ├── profile/                  # profile_screen, cloud_config_screen + widgets
 │   └── login_screen.dart
 ├── services/
@@ -217,19 +205,13 @@ lib/
 │   ├── auth_service.dart                 # Firebase Auth (opcional)
 │   ├── firebase_config.dart              # Config efetiva: app (CloudConfig) → .env
 │   ├── cloud_config.dart                 # Config do Firebase informada no app
-│   ├── notification_service.dart         # Notificações locais de vencimento
-│   ├── notification_capture_service.dart # Ponte para o serviço nativo de captura
-│   ├── transaction_parser.dart           # Interpreta notificações (palavra-chave)
+│   └── notification_service.dart         # Notificações locais de vencimento
 ├── utils/                        # currency_formatter, date_utils, brazilian_currency_input_formatter
 ├── widgets/                      # Componentes reutilizáveis (formulários, month_selector, ...)
 ├── theme/
 │   └── app_theme.dart
 └── assets/
     └── app_icon.png
-
-android/app/src/main/kotlin/.../
-├── MainActivity.kt                       # MethodChannel da captura
-└── NotificationCaptureService.kt         # NotificationListenerService (captura crua)
 ```
 
 ---

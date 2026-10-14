@@ -6,13 +6,11 @@ import '../../services/auth_service.dart';
 import '../../services/cloud_config.dart';
 import '../../services/firebase_config.dart';
 import '../../services/logo_config.dart';
-import '../../services/notification_capture_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform_capabilities.dart';
 import '../../widgets/responsive_body.dart';
-import '../notification_capture/notification_capture_screen.dart';
 import 'cloud_config_screen.dart';
 import 'logo_config_screen.dart';
 import 'widgets/settings_section.dart';
@@ -224,7 +222,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Config salva porém ainda não aplicada (mudou desde o último boot).
     final pendingRestart = !cloudLive && FirebaseConfig.isConfigured;
     final email = cloudLive ? AuthService().currentUser?.email : null;
-    final captureSupported = NotificationCaptureService().isSupported;
     final notificationsSupported =
         PlatformCapabilities.supportsScheduledNotifications;
 
@@ -300,22 +297,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               onTap: _pickNotificationTime,
-            ),
-          ],
-
-          // ── Importação ───────────────────────────────────
-          if (captureSupported) ...[
-            const SettingsSection(title: 'Importação'),
-            SettingsTile(
-              icon: Icons.notifications_paused_outlined,
-              title: 'Captura de notificações',
-              subtitle: 'Importar gastos e rendimentos das notificações do banco',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const NotificationCaptureScreen(),
-                ),
-              ),
             ),
           ],
 
