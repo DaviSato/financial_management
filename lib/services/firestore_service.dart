@@ -65,6 +65,30 @@ class FirestoreService {
     await _col('categories').doc(id).delete();
   }
 
+  // ─── Bank transactions already handled (launched or discarded) ────────────
+  //
+  // Keyed by the Pluggy transaction id, so a transaction handled on one device
+  // does not show up again in the inbox of another.
+
+  Future<Map<String, String?>> getBankHandled() async {
+    final snapshot = await _col('bank_handled').get();
+    return {
+      for (final d in snapshot.docs) d.id: d.data()['fingerprint'] as String?,
+    };
+  }
+
+  Future<void> saveBankHandled(Map<String, String?> entries) async {
+    if (entries.isEmpty) return;
+    final batch = _db.batch();
+    for (final e in entries.entries) {
+      batch.set(_col('bank_handled').doc(e.key), {
+        'fingerprint': e.value,
+        'handledAt': DateTime.now().toIso8601String(),
+      });
+    }
+    await batch.commit();
+  }
+
   // ─── Sync from Firestore → SharedPreferences ──────────────────────────────
   //
   // Called once on login. Firestore is the source of truth: its data overwrites

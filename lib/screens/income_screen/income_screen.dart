@@ -9,6 +9,7 @@ import '../../providers/income_state.dart';
 import '../../providers/privacy_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/date_utils.dart';
+import '../../widgets/bank_inbox_button.dart';
 import '../../widgets/income_form.dart';
 import '../../widgets/collapsing_header_sliver.dart';
 import '../../widgets/month_selector.dart';
@@ -180,6 +181,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
               CollapsingHeaderSliver(
                 title: const Text('Rendimentos'),
                 actions: [
+                  const BankInboxButton(),
                   Consumer<PrivacyState>(
                     builder: (context, privacy, _) => IconButton(
                       tooltip: privacy.hideIncome

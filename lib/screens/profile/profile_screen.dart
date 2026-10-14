@@ -7,12 +7,14 @@ import '../../services/cloud_config.dart';
 import '../../services/firebase_config.dart';
 import '../../services/logo_config.dart';
 import '../../services/notification_service.dart';
+import '../../services/pluggy_config.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform_capabilities.dart';
 import '../../widgets/responsive_body.dart';
 import 'cloud_config_screen.dart';
 import 'logo_config_screen.dart';
+import 'pluggy_config_screen.dart';
 import 'widgets/settings_section.dart';
 import 'widgets/settings_tile.dart';
 
@@ -204,6 +206,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return 'Toque para configurar as chaves do logo.dev';
   }
 
+  String _pluggySubtitle() {
+    final cfg = PluggyConfig();
+    if (!cfg.hasCredentials) return 'Toque para configurar as credenciais';
+    final count = cfg.connections.length;
+    if (count == 0) return 'Nenhum banco conectado';
+    return count == 1 ? '1 banco conectado' : '$count bancos conectados';
+  }
+
+  Future<void> _openPluggyConfig() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PluggyConfigScreen()),
+    );
+    if (mounted) setState(() {});
+  }
+
   /// Abre a tela cheia das chaves do logo.dev (mesmo padrão da conexão com a
   /// nuvem). Ao voltar, atualiza o subtítulo do tile.
   Future<void> _openLogoConfig() async {
@@ -299,6 +317,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: _pickNotificationTime,
             ),
           ],
+
+          // ── Bancos ───────────────────────────────────────
+          const SettingsSection(title: 'Bancos'),
+          SettingsTile(
+            icon: Icons.account_balance_outlined,
+            title: 'Bancos conectados (Pluggy)',
+            subtitle: _pluggySubtitle(),
+            onTap: _openPluggyConfig,
+          ),
 
           // ── Logos de marca ───────────────────────────────
           const SettingsSection(title: 'Logos de marca'),

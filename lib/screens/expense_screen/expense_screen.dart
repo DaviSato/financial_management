@@ -9,6 +9,7 @@ import '../../models/recurrence.dart';
 import '../../providers/category_state.dart';
 import '../../providers/expense_state.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/bank_inbox_button.dart';
 import '../../widgets/expense_form.dart';
 import '../../widgets/collapsing_header_sliver.dart';
 import '../../widgets/month_selector.dart';
@@ -185,6 +186,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       selected: sortOption,
                       onSelected: (opt) => setState(() => sortOption = opt),
                     ),
+                    const BankInboxButton(),
                     const SizedBox(width: 4),
                   ],
                   headerHeight: 104,

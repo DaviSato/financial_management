@@ -21,6 +21,7 @@ import 'services/firebase_config.dart';
 import 'services/firestore_service.dart';
 import 'services/logo_config.dart';
 import 'services/notification_service.dart';
+import 'services/pluggy_config.dart';
 import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
 import 'utils/platform_capabilities.dart';
@@ -53,6 +54,9 @@ void main() async {
 
   // Token do logo.dev, mesmo esquema: app sobrepõe o .env.
   await LogoConfig().load();
+
+  // Credenciais da Pluggy e bancos conectados, mesmo esquema.
+  await PluggyConfig().load();
 
   FirestoreService? firestoreService;
   if (FirebaseConfig.isConfigured) {

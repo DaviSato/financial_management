@@ -13,6 +13,7 @@ import '../../providers/expense_state.dart';
 import '../../providers/income_state.dart';
 import '../../providers/privacy_state.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/bank_inbox_button.dart';
 import '../../widgets/collapsing_header_sliver.dart';
 import '../../widgets/month_selector.dart';
 import '../../widgets/responsive_body.dart';
@@ -94,6 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               CollapsingHeaderSliver(
                 title: const Text('Painel'),
                 actions: [
+                  const BankInboxButton(),
                   Consumer<PrivacyState>(
                     builder: (context, privacy, _) => IconButton(
                       tooltip: privacy.hideIncome
