@@ -149,6 +149,7 @@ class BankSyncService extends ChangeNotifier {
           json,
           account: account,
           institution: connection.institution,
+          institutionLogo: connection.logoDomain,
         );
         // Histórico anterior à conexão fica de fora, mesmo que a Pluggy o
         // devolva.

@@ -1,5 +1,7 @@
 import 'package:financial_management/theme/app_theme.dart';
 import 'package:financial_management/utils/currency_formatter.dart';
+import 'package:financial_management/models/bank_origin.dart';
+import 'package:financial_management/widgets/bank_origin_badge.dart';
 import 'package:financial_management/widgets/brand_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -23,6 +25,7 @@ class ExpenseCard extends StatelessWidget {
     this.totalPeriods,
     this.isInstallment = false,
     this.logoDomain,
+    this.bankOrigin,
   });
 
   final String title;
@@ -31,6 +34,9 @@ class ExpenseCard extends StatelessWidget {
   final DateTime dueDate;
   final Color color;
   final String? logoDomain;
+
+  /// Banco de onde foi lançado (Pluggy) — vira um selo no canto do ícone.
+  final BankOrigin? bankOrigin;
   final bool isPaid;
   final bool notifyOnDue;
   final DateTime? paidDate;
@@ -87,6 +93,24 @@ class ExpenseCard extends StatelessWidget {
     );
   }
 
+  /// Selo do banco no canto superior esquerdo — o inferior direito é do
+  /// estado pago/vencido.
+  Widget _withBankBadge(Widget leading) {
+    final origin = bankOrigin;
+    if (origin == null) return leading;
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          leading,
+          Positioned(left: -4, top: -4, child: BankOriginBadge(origin: origin)),
+        ],
+      ),
+    );
+  }
+
   Widget _statusBadge() {
     final paid = isPaid;
     return Container(
@@ -136,7 +160,7 @@ class ExpenseCard extends StatelessWidget {
           child: Row(
             children: [
               // Logo da marca / indicador de estado
-              _buildLeading(),
+              _withBankBadge(_buildLeading()),
               const SizedBox(width: 14),
 
               // Title + category pill

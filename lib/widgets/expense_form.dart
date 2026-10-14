@@ -221,6 +221,7 @@ class _ExpenseFormDialogState extends State<ExpenseFormDialog> {
         notifyOnDue: _notifyOnDue,
         paidByMonth: paidByMonth,
         logoDomain: _logoDomain,
+        bankOrigin: widget.expense?.bankOrigin,
       ),
     );
     Navigator.of(context).pop();

@@ -190,7 +190,11 @@ FIREBASE_STORAGE_BUCKET=meu-projeto.appspot.com
 ```env
 PLUGGY_CLIENT_ID=...
 PLUGGY_CLIENT_SECRET=...
+# bancos: itemId:Nome:domínio-do-logo, separados por vírgula (nome e logo opcionais)
+PLUGGY_ITEMS=fc8c9eef-...:Bradesco:bradesco.com.br,1a2b3c4d-...:Nubank:nubank.com.br
 ```
+
+Bancos do `PLUGGY_ITEMS` aparecem no app como "definido no .env" e se somam aos adicionados pela tela. A data de início de cada um é o dia em que o app o viu pela primeira vez.
 
 > ⚠️ O arquivo `.env` está no `.gitignore` e **nunca deve ser commitado**.
 >

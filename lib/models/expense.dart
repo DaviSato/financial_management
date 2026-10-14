@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import 'bank_origin.dart';
 import 'payment_method.dart';
 import 'recurrence.dart';
 
@@ -22,6 +23,10 @@ class Expense {
   /// campo, nunca pelos bytes. Null = sem logo (cai no visual padrão).
   final String? logoDomain;
 
+  /// Banco de onde foi lançado pela caixa de entrada da Pluggy; null quando
+  /// foi cadastrado à mão.
+  final BankOrigin? bankOrigin;
+
   Expense({
     String? id,
     required this.amount,
@@ -36,6 +41,7 @@ class Expense {
     Map<String, DateTime>? paidByMonth,
     this.notifyOnDue = false,
     this.logoDomain,
+    this.bankOrigin,
   }) : id = id ?? Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        paidByMonth = paidByMonth ?? {};
@@ -71,6 +77,7 @@ class Expense {
       'paidByMonth': paidByMonth.map((k, v) => MapEntry(k, v.toIso8601String())),
       'notifyOnDue': notifyOnDue,
       'logoDomain': logoDomain,
+      'bankOrigin': bankOrigin?.toJson(),
     };
   }
 
@@ -95,6 +102,7 @@ class Expense {
           {},
       notifyOnDue: json['notifyOnDue'] as bool? ?? false,
       logoDomain: json['logoDomain'] as String?,
+      bankOrigin: BankOrigin.fromJson(json['bankOrigin']),
     );
   }
 
@@ -127,6 +135,7 @@ class Expense {
     Map<String, DateTime>? paidByMonth,
     bool? notifyOnDue,
     String? logoDomain,
+    BankOrigin? bankOrigin,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -142,6 +151,7 @@ class Expense {
       paidByMonth: paidByMonth ?? Map.of(this.paidByMonth),
       notifyOnDue: notifyOnDue ?? this.notifyOnDue,
       logoDomain: logoDomain ?? this.logoDomain,
+      bankOrigin: bankOrigin ?? this.bankOrigin,
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../models/bank_transaction.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/currency_formatter.dart';
+import '../../../widgets/brand_avatar.dart';
 
 /// Uma movimentação do banco aguardando ser lançada.
 class BankTransactionCard extends StatelessWidget {
@@ -34,11 +35,7 @@ class BankTransactionCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            Icon(
-              isExpense ? Icons.south_west_rounded : Icons.north_east_rounded,
-              size: 18,
-              color: color,
-            ),
+            _Flag(transaction: t, color: color, isExpense: isExpense),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -55,8 +52,13 @@ class BankTransactionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${t.institution} · '
-                    '${DateFormat('dd/MM', 'pt_BR').format(t.date)}',
+                    [
+                      t.institution,
+                      t.accountLabel,
+                      DateFormat('dd/MM', 'pt_BR').format(t.date),
+                    ].where((p) => p.isNotEmpty).join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF6E6E78),
@@ -103,6 +105,58 @@ class BankTransactionCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Bandeira do banco: o logo escolhido para a conexão, com o sentido da
+/// movimentação num selo no canto. Sem logo, fica só a seta.
+class _Flag extends StatelessWidget {
+  const _Flag({
+    required this.transaction,
+    required this.color,
+    required this.isExpense,
+  });
+
+  final BankTransaction transaction;
+  final Color color;
+  final bool isExpense;
+
+  IconData get _arrow =>
+      isExpense ? Icons.south_west_rounded : Icons.north_east_rounded;
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = transaction.institutionLogo;
+    if (logo == null || logo.isEmpty) {
+      return Icon(_arrow, size: 18, color: color);
+    }
+
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          BrandAvatar(logoDomain: logo, color: color, size: 40),
+          Positioned(
+            right: -4,
+            bottom: -4,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).cardColor,
+                  width: 2,
+                ),
+              ),
+              child: Icon(_arrow, size: 10, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

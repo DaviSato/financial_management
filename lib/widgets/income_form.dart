@@ -134,6 +134,7 @@ class _IncomeFormDialogState extends State<IncomeFormDialog> {
             : null,
         receiveDate: _receiveDate,
         createdAt: widget.income?.createdAt,
+        bankOrigin: widget.income?.bankOrigin,
       ),
     );
     Navigator.of(context).pop();

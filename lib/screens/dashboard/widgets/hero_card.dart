@@ -1,6 +1,6 @@
 import 'package:financial_management/screens/dashboard/widgets/hero_metric.dart';
 import 'package:financial_management/theme/app_theme.dart';
-import 'package:financial_management/utils/currency_formatter.dart';
+import 'package:financial_management/widgets/private_amount.dart';
 import 'package:flutter/material.dart';
 
 class HeroCard extends StatelessWidget {
@@ -87,8 +87,9 @@ class HeroCard extends StatelessWidget {
           const SizedBox(height: 10),
 
           // Balance amount
-          Text(
-            hidePrivate ? 'R\$ ••••' : CurrencyFormatter.format(balance),
+          PrivateAmount(
+            balance,
+            hidden: hidePrivate,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 34,

@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import 'bank_origin.dart';
 import 'recurrence.dart';
 
 class Income {
@@ -13,6 +14,10 @@ class Income {
   final DateTime receiveDate;
   final DateTime createdAt;
 
+  /// Banco de onde foi lançado pela caixa de entrada da Pluggy; null quando
+  /// foi cadastrado à mão.
+  final BankOrigin? bankOrigin;
+
   Income({
     String? id,
     required this.amount,
@@ -23,6 +28,7 @@ class Income {
     this.intervalMonths,
     DateTime? receiveDate,
     DateTime? createdAt,
+    this.bankOrigin,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        receiveDate = receiveDate ?? createdAt ?? DateTime.now();
@@ -44,6 +50,7 @@ class Income {
       'intervalMonths': intervalMonths,
       'receiveDate': receiveDate.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
+      'bankOrigin': bankOrigin?.toJson(),
     };
   }
 
@@ -66,6 +73,7 @@ class Income {
           ? DateTime.parse(json['receiveDate'] as String)
           : createdAt,
       createdAt: createdAt,
+      bankOrigin: BankOrigin.fromJson(json['bankOrigin']),
     );
   }
 
@@ -88,6 +96,7 @@ class Income {
     int? intervalMonths,
     DateTime? receiveDate,
     DateTime? createdAt,
+    BankOrigin? bankOrigin,
   }) {
     return Income(
       id: id ?? this.id,
@@ -99,6 +108,7 @@ class Income {
       intervalMonths: intervalMonths ?? this.intervalMonths,
       receiveDate: receiveDate ?? this.receiveDate,
       createdAt: createdAt ?? this.createdAt,
+      bankOrigin: bankOrigin ?? this.bankOrigin,
     );
   }
 

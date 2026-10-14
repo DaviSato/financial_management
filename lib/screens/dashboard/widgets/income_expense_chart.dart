@@ -1,7 +1,7 @@
 import 'package:financial_management/models/category.dart';
 import 'package:financial_management/screens/dashboard/widgets/chart_legend_row.dart';
 import 'package:financial_management/theme/app_theme.dart';
-import 'package:financial_management/utils/currency_formatter.dart';
+import 'package:financial_management/widgets/private_amount.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -95,10 +95,9 @@ class IncomeExpenseChart extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      hidePrivate
-                          ? 'R\$ ••••'
-                          : CurrencyFormatter.format(balance),
+                    PrivateAmount(
+                      balance,
+                      hidden: hidePrivate,
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,

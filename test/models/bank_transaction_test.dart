@@ -132,4 +132,19 @@ void main() {
     final posted = parse(tx(id: 'b'))!;
     expect(pending.fingerprint, posted.fingerprint);
   });
+
+  test('rótulo da conta: nome e final do número', () {
+    final account = BankAccount.fromPluggy({
+      'id': 'acc-9',
+      'type': 'BANK',
+      'name': 'Conta Corrente',
+      'number': '1234/56789-0',
+    });
+    expect(account.label, 'Conta Corrente ••7890');
+    expect(parse(tx(), account: account)!.accountLabel, 'Conta Corrente ••7890');
+  });
+
+  test('rótulo da conta sem número fica só com o nome', () {
+    expect(checking.label, 'Conta');
+  });
 }

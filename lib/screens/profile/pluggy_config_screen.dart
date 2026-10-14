@@ -4,6 +4,11 @@ import '../../models/bank_connection.dart';
 import '../../services/bank_sync_service.dart';
 import '../../services/pluggy_client.dart';
 import '../../services/pluggy_config.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/brand_avatar.dart';
+import '../../widgets/logo_picker_field.dart';
+
+typedef _BankInput = ({String itemId, String name, String? logoDomain});
 
 /// Credenciais da Pluggy e bancos conectados (items do Meu Pluggy).
 ///
@@ -64,11 +69,12 @@ class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
   }
 
   Future<void> _addConnection() async {
-    final itemId = await showDialog<String>(
+    final input = await showDialog<_BankInput>(
       context: context,
-      builder: (_) => const _ItemIdDialog(),
+      builder: (_) => const _BankDialog(),
     );
-    if (itemId == null || itemId.isEmpty) return;
+    if (input == null || input.itemId.isEmpty) return;
+    final itemId = input.itemId;
 
     // O item é validado com as credenciais da tela, mesmo que ainda não
     // tenham sido salvas — senão o erro apontaria para o lugar errado.
@@ -86,15 +92,19 @@ class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
     );
     try {
       final item = await client.getItem(itemId);
+      // O conector de um item do Meu Pluggy é sempre "MeuPluggy"; o nome
+      // informado pelo usuário é o que diz de qual banco é.
+      final name = input.name.isNotEmpty ? input.name : item.institution;
       await cfg.addConnection(
         BankConnection(
           itemId: item.id,
-          institution: item.institution,
+          institution: name,
           connectedAt: DateTime.now(),
+          logoDomain: input.logoDomain,
         ),
       );
       BankSyncService().reset();
-      if (mounted) _snack('${item.institution} conectado.');
+      if (mounted) _snack('$name conectado.');
     } on PluggyException catch (e) {
       if (!mounted) return;
       _snack(switch (e.statusCode) {
@@ -107,6 +117,22 @@ class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
       client.close();
       if (mounted) setState(() => _adding = false);
     }
+  }
+
+  Future<void> _editConnection(BankConnection connection) async {
+    final input = await showDialog<_BankInput>(
+      context: context,
+      builder: (_) => _BankDialog(initial: connection),
+    );
+    if (input == null) return;
+    await PluggyConfig().updateConnection(
+      connection.itemId,
+      institution: input.name,
+      logoDomain: input.logoDomain,
+    );
+    // A caixa de entrada guarda o nome antigo nas movimentações já lidas.
+    BankSyncService().reset();
+    if (mounted) setState(() {});
   }
 
   Future<void> _removeConnection(BankConnection connection) async {
@@ -223,20 +249,41 @@ class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
                   ),
                 ),
               for (final c in connections)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.account_balance_outlined),
-                  title: Text(c.institution.isEmpty ? c.itemId : c.institution),
-                  subtitle: Text(
-                    'Desde ${_formatDate(c.connectedAt)}',
-                    style: const TextStyle(fontSize: 12),
+                if (PluggyConfig().isFromEnv(c.itemId))
+                  // Vem do PLUGGY_ITEMS: muda-se no .env, não aqui.
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: _bankAvatar(c),
+                    title: Text(
+                      c.institution.isEmpty ? c.itemId : c.institution,
+                    ),
+                    subtitle: Text(
+                      'Desde ${_formatDate(c.connectedAt)} · definido no .env',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Tooltip(
+                      message: 'Altere em PLUGGY_ITEMS no .env',
+                      child: Icon(Icons.lock_outline_rounded, size: 20),
+                    ),
+                  )
+                else
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: _bankAvatar(c),
+                    title: Text(
+                      c.institution.isEmpty ? c.itemId : c.institution,
+                    ),
+                    subtitle: Text(
+                      'Desde ${_formatDate(c.connectedAt)} · toque para editar',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onTap: () => _editConnection(c),
+                    trailing: IconButton(
+                      tooltip: 'Remover',
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      onPressed: () => _removeConnection(c),
+                    ),
                   ),
-                  trailing: IconButton(
-                    tooltip: 'Remover',
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    onPressed: () => _removeConnection(c),
-                  ),
-                ),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -262,52 +309,109 @@ class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
     );
   }
 
+  static Widget _bankAvatar(BankConnection c) => (c.logoDomain ?? '').isEmpty
+      ? const Icon(Icons.account_balance_outlined)
+      : BrandAvatar(
+          logoDomain: c.logoDomain,
+          color: AppTheme.primaryColor,
+          size: 36,
+        );
+
   static String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
-/// Pede o id do item (UUID mostrado no Dashboard/Meu Pluggy).
-class _ItemIdDialog extends StatefulWidget {
-  const _ItemIdDialog();
+/// Dados do banco: Item ID (só ao adicionar), nome e logo (bandeira).
+class _BankDialog extends StatefulWidget {
+  const _BankDialog({this.initial});
+
+  /// null = adicionar (pede o Item ID); preenchido = editar.
+  final BankConnection? initial;
 
   @override
-  State<_ItemIdDialog> createState() => _ItemIdDialogState();
+  State<_BankDialog> createState() => _BankDialogState();
 }
 
-class _ItemIdDialogState extends State<_ItemIdDialog> {
-  final _controller = TextEditingController();
+class _BankDialogState extends State<_BankDialog> {
+  final _idController = TextEditingController();
+  late final _nameController =
+      TextEditingController(text: widget.initial?.institution ?? '');
+  late String? _logoDomain = widget.initial?.logoDomain;
+
+  bool get _isEditing => widget.initial != null;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _idController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
+  void _submit() => Navigator.pop(context, (
+        itemId: _isEditing ? widget.initial!.itemId : _idController.text.trim(),
+        name: _nameController.text.trim(),
+        logoDomain: _logoDomain,
+      ));
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Adicionar banco'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        autocorrect: false,
-        enableSuggestions: false,
-        decoration: const InputDecoration(
-          labelText: 'Item ID',
-          hintText: '00000000-0000-0000-0000-000000000000',
+    // Tela cheia: a busca de logo abre uma lista de resultados que não cabe
+    // num AlertDialog.
+    return Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEditing ? 'Editar banco' : 'Adicionar banco'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _submit,
+              child: Text(_isEditing ? 'Salvar' : 'Adicionar'),
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
-        onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!_isEditing) ...[
+                TextField(
+                  controller: _idController,
+                  autofocus: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Item ID',
+                    hintText: '00000000-0000-0000-0000-000000000000',
+                    helperText: 'Dashboard → Demo → Itens Conectados',
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+              LogoPickerField(
+                logoDomain: _logoDomain,
+                color: AppTheme.primaryColor,
+                onChanged: (d) => setState(() => _logoDomain = d),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do banco',
+                  hintText: 'Ex.: Bradesco',
+                  helperText: 'Aparece em cada movimentação',
+                ),
+                onSubmitted: (_) => _submit(),
+              ),
+            ],
+          ),
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _controller.text.trim()),
-          child: const Text('Adicionar'),
-        ),
-      ],
     );
   }
 }

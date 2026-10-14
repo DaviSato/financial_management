@@ -1,4 +1,4 @@
-import 'package:financial_management/utils/currency_formatter.dart';
+import 'package:financial_management/widgets/private_amount.dart';
 import 'package:flutter/material.dart';
 
 class HeroMetric extends StatelessWidget {
@@ -38,8 +38,9 @@ class HeroMetric extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            obscured ? 'R\$ ••••' : CurrencyFormatter.format(value),
+          PrivateAmount(
+            value,
+            hidden: obscured,
             style: TextStyle(
               color: color,
               fontSize: 15,

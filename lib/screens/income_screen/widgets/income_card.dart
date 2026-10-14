@@ -1,5 +1,7 @@
+import 'package:financial_management/models/bank_origin.dart';
 import 'package:financial_management/theme/app_theme.dart';
-import 'package:financial_management/utils/currency_formatter.dart';
+import 'package:financial_management/widgets/bank_origin_badge.dart';
+import 'package:financial_management/widgets/private_amount.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -15,6 +17,7 @@ class IncomeCard extends StatelessWidget {
     this.periodIndex,
     this.totalPeriods,
     this.hideAmount = false,
+    this.bankOrigin,
   });
 
   final String title;
@@ -28,6 +31,9 @@ class IncomeCard extends StatelessWidget {
   final int? periodIndex;
   final int? totalPeriods;
   final bool hideAmount;
+
+  /// Banco de onde foi lançado (Pluggy) — vira um selo no canto do ícone.
+  final BankOrigin? bankOrigin;
 
   @override
   Widget build(BuildContext context) {
@@ -45,19 +51,34 @@ class IncomeCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
         child: Row(
           children: [
-            Container(
+            SizedBox(
               width: 44,
               height: 44,
-              decoration: BoxDecoration(
-                color: AppTheme.incomColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.arrow_upward_rounded,
-                  color: AppTheme.incomColor,
-                  size: 20,
-                ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.incomColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.arrow_upward_rounded,
+                        color: AppTheme.incomColor,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  if (bankOrigin != null)
+                    Positioned(
+                      left: -4,
+                      top: -4,
+                      child: BankOriginBadge(origin: bankOrigin!),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 14),
@@ -105,8 +126,9 @@ class IncomeCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  hideAmount ? 'R\$ ••••' : CurrencyFormatter.format(amount),
+                PrivateAmount(
+                  amount,
+                  hidden: hideAmount,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,

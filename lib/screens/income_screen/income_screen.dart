@@ -254,6 +254,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
                             periodIndex: periodIndex,
                             totalPeriods: totalPeriods,
                             hideAmount: privacy.hideIncome,
+                            bankOrigin: income.bankOrigin,
                             onEdit: () =>
                                 _openForm(context, income: original ?? income),
                             onDelete: () => _confirmDelete(

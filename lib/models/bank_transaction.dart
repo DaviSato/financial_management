@@ -7,6 +7,9 @@ class BankAccount {
   final String id;
   final String name;
 
+  /// Número externo da conta/cartão; só os últimos dígitos são mostrados.
+  final String number;
+
   /// `true` para cartão de crédito (`type: CREDIT`), `false` para conta
   /// corrente/poupança (`type: BANK`).
   final bool isCreditCard;
@@ -15,13 +18,25 @@ class BankAccount {
     required this.id,
     required this.name,
     required this.isCreditCard,
+    this.number = '',
   });
+
+  /// Rótulo curto para a UI: nome da conta e final do número
+  /// (ex.: "Conta Corrente ••1234"). Um item do Meu Pluggy pode trazer contas
+  /// e cartões, e o nome é o que os distingue.
+  String get label {
+    final digits = number.replaceAll(RegExp(r'\D'), '');
+    final suffix =
+        digits.length >= 4 ? '••${digits.substring(digits.length - 4)}' : '';
+    return [name.trim(), suffix].where((p) => p.isNotEmpty).join(' ');
+  }
 
   factory BankAccount.fromPluggy(Map<String, dynamic> json) {
     return BankAccount(
       id: json['id'] as String,
       name: (json['marketingName'] ?? json['name'] ?? '') as String,
       isCreditCard: json['type'] == 'CREDIT',
+      number: (json['number'] ?? '') as String,
     );
   }
 }
@@ -34,6 +49,12 @@ class BankTransaction {
   final String id;
   final String accountId;
   final String institution;
+
+  /// Logo do banco (domínio no logo.dev), quando o usuário escolheu um.
+  final String? institutionLogo;
+
+  /// Conta ou cartão de origem ([BankAccount.label]).
+  final String accountLabel;
 
   /// Sempre positivo; o sentido está em [type].
   final double amount;
@@ -55,6 +76,8 @@ class BankTransaction {
     required this.id,
     required this.accountId,
     required this.institution,
+    this.institutionLogo,
+    this.accountLabel = '',
     required this.amount,
     required this.type,
     required this.description,
@@ -81,6 +104,7 @@ class BankTransaction {
     Map<String, dynamic> json, {
     required BankAccount account,
     required String institution,
+    String? institutionLogo,
   }) {
     if (_ignored(json, account)) return null;
 
@@ -95,6 +119,8 @@ class BankTransaction {
       id: json['id'] as String,
       accountId: account.id,
       institution: institution,
+      institutionLogo: institutionLogo,
+      accountLabel: account.label,
       amount: rawAmount.abs().toDouble(),
       type: type,
       description: _description(json, type),

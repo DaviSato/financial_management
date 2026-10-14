@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/bank_origin.dart';
 import '../../models/bank_transaction.dart';
 import '../../models/expense.dart';
 import '../../models/income.dart';
@@ -91,6 +92,7 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
               amount: t.amount,
               title: t.description,
               receiveDate: t.date,
+              bankOrigin: _origin(t),
             ),
             isEditing: false,
             onSave: (income) {
@@ -131,6 +133,7 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
         paymentMethod: t.paymentMethod,
         recurrenceType: RecurrenceType.installment,
         durationMonths: t.totalInstallments,
+        bankOrigin: _origin(t),
       );
     }
     return Expense(
@@ -139,8 +142,12 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
       category: '',
       dueDate: t.date,
       paymentMethod: t.paymentMethod,
+      bankOrigin: _origin(t),
     );
   }
+
+  static BankOrigin _origin(BankTransaction t) =>
+      BankOrigin(name: t.institution, logoDomain: t.institutionLogo);
 
   @override
   Widget build(BuildContext context) {

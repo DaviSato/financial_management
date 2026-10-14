@@ -298,6 +298,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             dueDate: expense.dueDate,
                             color: color,
                             logoDomain: expense.logoDomain,
+                            bankOrigin: expense.bankOrigin,
                             isPaid: isPaid,
                             paidDate: paidDate,
                             notifyOnDue: expense.notifyOnDue,

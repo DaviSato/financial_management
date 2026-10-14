@@ -1,4 +1,4 @@
-import 'package:financial_management/utils/currency_formatter.dart';
+import 'package:financial_management/widgets/private_amount.dart';
 import 'package:flutter/material.dart';
 
 class ChartLegendRow extends StatelessWidget {
@@ -33,8 +33,9 @@ class ChartLegendRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        Text(
-          obscured ? 'R\$ ••••' : CurrencyFormatter.format(value),
+        PrivateAmount(
+          value,
+          hidden: obscured,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
