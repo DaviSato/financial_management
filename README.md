@@ -45,8 +45,16 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 - Navegação por mês
 - **Ocultar valores** — o mesmo olho mascara rendimento e saldo (mantendo os gastos visíveis)
 
+### Movimentações do banco _(Pluggy)_
+- Traz as movimentações dos seus bancos via **Open Finance**, pelo [Meu Pluggy](https://www.pluggy.ai/meu-pluggy) (gratuito para as suas próprias contas)
+- **Caixa de entrada** com sino e contador nas abas principais — cada movimentação vira gasto ou rendimento só quando você confirma pelo formulário pré-preenchido (categoria obrigatória); nada é lançado sozinho
+- Começa **a partir do dia em que o banco foi conectado** no app — sem importar histórico
+- Descrição pela contraparte (estabelecimento ou quem pagou), forma de pagamento (Pix, boleto, transferência, cartão) e parcelas; a primeira parcela sugere o parcelamento inteiro
+- **Deslize para descartar** ou "descartar tudo"; o que foi lançado/descartado não volta, nem em outro aparelho conectado à mesma nuvem
+- Funciona em Android, iOS e Windows (só HTTP, sem serviço nativo)
+
 ### Perfil / Configurações
-- Aba própria que reúne conta, notificações e conexão à nuvem
+- Aba própria que reúne conta, notificações, bancos conectados e conexão à nuvem
 - Horário do aviso de vencimentos configurável
 - Conectar / editar / restaurar a conexão com a nuvem
 
@@ -107,6 +115,7 @@ users/
     incomes/     {id} → { amount, title, recurrenceType, ... }
     expenses/    {id} → { amount, title, category, paidByMonth, ... }
     categories/  {id} → { name, color }
+    bank_handled/{id} → { fingerprint, handledAt }   # movimentações da Pluggy já lançadas/descartadas
 ```
 
 ### Regras de segurança recomendadas
@@ -121,6 +130,23 @@ service cloud.firestore {
   }
 }
 ```
+
+---
+
+## Pluggy (opcional)
+
+As movimentações dos bancos vêm do **Meu Pluggy**: gratuito, sem prazo, até 5 conexões de contas do mesmo titular, atualizadas a cada 24h. Não serve para contas de outras pessoas.
+
+1. Crie a conta em [meu.pluggy.ai](https://meu.pluggy.ai) e conecte seus bancos (Open Finance).
+2. No [Dashboard da Pluggy](https://dashboard.pluggy.ai), vincule essas conexões à aplicação de demonstração e copie o **Client ID** e o **Client Secret** dela.
+3. No app: **Perfil → Bancos conectados (Pluggy)** → informe as credenciais e adicione o **Item ID** de cada banco (o Meu Pluggy não permite listar os items pela API, por isso o id é colado à mão).
+
+Notas:
+
+- O **Client Secret** fica no armazenamento seguro do sistema (Keystore / Keychain / Credential Manager), nunca no SharedPreferences. A Pluggy recomenda mantê-lo num servidor; aqui, como as credenciais são suas e só enxergam as suas contas, o app chama a API direto — sem backend.
+- O app sincroniza ao abrir e ao voltar ao primeiro plano, no máximo a cada 15 min. Como o Meu Pluggy atualiza uma vez por dia, uma compra de hoje pode só aparecer amanhã.
+- A caixa de entrada olha até 60 dias para trás; o que ficar mais tempo sem ser lançado sai dela.
+- Compras no cartão aparecem como **pendentes** até a fatura fechar. Se a Pluggy trocar o id ao liquidar, o app reconhece a mesma compra (conta, valor, dia) e não a mostra de novo.
 
 ---
 
@@ -159,6 +185,13 @@ FIREBASE_MESSAGING_SENDER_ID=123456789
 FIREBASE_STORAGE_BUCKET=meu-projeto.appspot.com
 ```
 
+**Com Pluggy** — opcionalmente, embuta as credenciais da aplicação (também configuráveis no app, que sobrepõe o `.env`):
+
+```env
+PLUGGY_CLIENT_ID=...
+PLUGGY_CLIENT_SECRET=...
+```
+
 > ⚠️ O arquivo `.env` está no `.gitignore` e **nunca deve ser commitado**.
 >
 > Alternativamente, deixe o `.env` vazio e informe as mesmas credenciais no app (Perfil → Conectar à nuvem) — elas ficam salvas localmente e sobrepõem o `.env`.
@@ -186,7 +219,8 @@ flutter run
 ```
 lib/
 ├── main.dart                     # Inicialização, Firebase opcional, MultiProvider
-├── models/                       # Expense, Income, Category, PaymentMethod, enums
+├── models/                       # Expense, Income, Category, PaymentMethod,
+│                                 #   BankTransaction, BankConnection, enums
 ├── providers/
 │   ├── expense_state.dart        # CRUD de gastos, computed helpers por mês
 │   ├── income_state.dart         # CRUD de rendimentos, computed helpers por mês
@@ -197,7 +231,8 @@ lib/
 │   ├── expense_screen/           # expense_screen + widgets (expense_card, filter_bar, sort_button, ...)
 │   ├── income_screen/            # income_screen + widgets (income_card, empty_state)
 │   ├── category_management/      # category_management_screen + widgets
-│   ├── profile/                  # profile_screen, cloud_config_screen + widgets
+│   ├── bank_inbox/               # caixa de entrada das movimentações da Pluggy
+│   ├── profile/                  # profile_screen, cloud_config_screen, pluggy_config_screen + widgets
 │   └── login_screen.dart
 ├── services/
 │   ├── storage_service.dart              # SharedPreferences (sempre ativo)
@@ -205,7 +240,11 @@ lib/
 │   ├── auth_service.dart                 # Firebase Auth (opcional)
 │   ├── firebase_config.dart              # Config efetiva: app (CloudConfig) → .env
 │   ├── cloud_config.dart                 # Config do Firebase informada no app
-│   └── notification_service.dart         # Notificações locais de vencimento
+│   ├── notification_service.dart         # Notificações locais de vencimento
+│   ├── pluggy_client.dart                # API da Pluggy (auth, items, contas, transações)
+│   ├── pluggy_config.dart                # Credenciais (secret no armazenamento seguro) e bancos
+│   ├── bank_sync_service.dart            # Sincroniza e mantém a caixa de entrada
+│   └── bank_handled_store.dart           # Lembra o que já foi lançado/descartado
 ├── utils/                        # currency_formatter, date_utils, brazilian_currency_input_formatter
 ├── widgets/                      # Componentes reutilizáveis (formulários, month_selector, ...)
 ├── theme/
