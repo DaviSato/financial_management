@@ -8,7 +8,8 @@
   ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=flat-square&logo=flutter)
   ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=flat-square&logo=dart)
   ![Firebase](https://img.shields.io/badge/Firebase-opcional-FFCA28?style=flat-square&logo=firebase&logoColor=black)
-  ![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey?style=flat-square)
+  ![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Windows-lightgrey?style=flat-square)
+  ![Open Finance](https://img.shields.io/badge/Open%20Finance-Meu%20Pluggy-6C47FF?style=flat-square)
 </div>
 
 ---
@@ -26,12 +27,13 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 - Tipos: único, recorrente ou por período
 - **Intervalo configurável** nos recorrentes — repita a cada _N_ meses: mensal (1), semestral (6) ou anual (12), cobrindo casos como **13º salário** e **saque-aniversário do FGTS**
 - **Navegação por mês**, igual à tela de gastos
-- **Ocultar valores** — botão de olho que mascara os rendimentos (privacidade), persistente e refletido também no painel
+- **Ocultar valores** — botão de olho que desfoca os rendimentos (privacidade), persistente e refletido também no painel
 
 ### Gastos
 - Tipos: único, mensal (recorrente), **parcelado** (valor total dividido em N parcelas) ou por período
 - Categorias personalizáveis com cores
 - Método de pagamento (cartão, pix, dinheiro, etc.)
+- **Logo da marca** — busca por nome via [logo.dev](https://logo.dev); o logo é baixado uma vez e fica em cache no aparelho
 - **Marcar como pago** por mês — gastos recorrentes são rastreados individualmente
 - **Notificação de vencimento** — ative por gasto para receber um aviso no dia que vencer
 - Indicador visual de vencimento em atraso (ícone de alerta)
@@ -43,7 +45,7 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 - Resumo de entradas, saídas e saldo do mês
 - Gráfico de pizza por categoria
 - Navegação por mês
-- **Ocultar valores** — o mesmo olho mascara rendimento e saldo (mantendo os gastos visíveis)
+- **Ocultar valores** — o mesmo olho desfoca rendimento e saldo (mantendo os gastos visíveis). O blur é aplicado sobre um valor fictício, não o real, para não revelar nem a ordem de grandeza
 
 ### Movimentações do banco _(Pluggy)_
 - Traz as movimentações dos seus bancos via **Open Finance**, pelo [Meu Pluggy](https://www.pluggy.ai/meu-pluggy) (gratuito para as suas próprias contas)
@@ -51,6 +53,8 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 - Começa **a partir do dia em que o banco foi conectado** no app — sem importar histórico
 - Descrição pela contraparte (estabelecimento ou quem pagou), forma de pagamento (Pix, boleto, transferência, cartão) e parcelas; a primeira parcela sugere o parcelamento inteiro
 - **Deslize para descartar** ou "descartar tudo"; o que foi lançado/descartado não volta, nem em outro aparelho conectado à mesma nuvem
+- **Nome e logo por banco** — o conector do Meu Pluggy se chama sempre "MeuPluggy", então você informa qual banco é e escolhe o logo, que aparece como bandeira em cada movimentação, junto da conta/cartão (ex.: `Bradesco · Conta Corrente ••7890`)
+- **Selo de origem** — gastos e rendimentos lançados pela caixa de entrada mostram o logo do banco num selo no canto do ícone (inclusive em recorrentes/parcelados e em outros aparelhos)
 - Funciona em Android, iOS e Windows (só HTTP, sem serviço nativo)
 
 ### Perfil / Configurações
@@ -112,11 +116,13 @@ SharedPreferences  ←→  ExpenseState / IncomeState / CategoryState  →  Fire
 ```
 users/
   {uid}/
-    incomes/     {id} → { amount, title, recurrenceType, ... }
-    expenses/    {id} → { amount, title, category, paidByMonth, ... }
+    incomes/     {id} → { amount, title, recurrenceType, bankOrigin?, ... }
+    expenses/    {id} → { amount, title, category, paidByMonth, logoDomain?, bankOrigin?, ... }
     categories/  {id} → { name, color }
     bank_handled/{id} → { fingerprint, handledAt }   # movimentações da Pluggy já lançadas/descartadas
 ```
+
+`bankOrigin` (`{ name, logoDomain }`) só existe nos lançamentos feitos pela caixa de entrada da Pluggy. Nome e logo do banco ficam no próprio lançamento — não o id do item — para o selo aparecer igual em aparelhos onde os bancos nem estão configurados.
 
 ### Regras de segurança recomendadas
 
@@ -137,9 +143,11 @@ service cloud.firestore {
 
 As movimentações dos bancos vêm do **Meu Pluggy**: gratuito, sem prazo, até 5 conexões de contas do mesmo titular, atualizadas a cada 24h. Não serve para contas de outras pessoas.
 
-1. Crie a conta em [meu.pluggy.ai](https://meu.pluggy.ai) e conecte seus bancos (Open Finance).
-2. No [Dashboard da Pluggy](https://dashboard.pluggy.ai), vincule essas conexões à aplicação de demonstração e copie o **Client ID** e o **Client Secret** dela.
-3. No app: **Perfil → Bancos conectados (Pluggy)** → informe as credenciais e adicione o **Item ID** de cada banco (o Meu Pluggy não permite listar os items pela API, por isso o id é colado à mão).
+1. Crie a conta em [meu.pluggy.ai](https://meu.pluggy.ai) e conecte seus bancos (Open Finance). Conclua a autorização no app do banco e espere voltar ao Meu Pluggy antes de fechar — senão a conexão fica como "reconexão necessária".
+2. No [Dashboard da Pluggy](https://dashboard.pluggy.ai), copie o **Client ID** e o **Client Secret** da aba **Aplicação**. Na **Demo** da aplicação, conecte pelo conector **Meu Pluggy** e, em **Itens Conectados**, copie o **Item ID** de cada banco.
+3. No app: **Perfil → Bancos conectados (Pluggy)** → informe as credenciais e toque em **Adicionar** para cada banco: Item ID, logo e nome (o Meu Pluggy não permite listar os items pela API, por isso o id é colado à mão). Toque num banco para editar nome e logo.
+
+Também dá para configurar tudo pelo `.env` (ver [Configuração do `.env`](#3-configuração-do-env)).
 
 Notas:
 
@@ -147,6 +155,9 @@ Notas:
 - O app sincroniza ao abrir e ao voltar ao primeiro plano, no máximo a cada 15 min. Como o Meu Pluggy atualiza uma vez por dia, uma compra de hoje pode só aparecer amanhã.
 - A caixa de entrada olha até 60 dias para trás; o que ficar mais tempo sem ser lançado sai dela.
 - Compras no cartão aparecem como **pendentes** até a fatura fechar. Se a Pluggy trocar o id ao liquidar, o app reconhece a mesma compra (conta, valor, dia) e não a mostra de novo.
+- O pagamento da fatura do lado do cartão é ignorado (é só contábil); do lado da conta corrente ele aparece, porque é dinheiro que saiu.
+- Um **Pix entre contas suas** aparece duas vezes (saída num banco, entrada no outro). Não é gasto nem rendimento — descarte as duas.
+- Nada é lançado automaticamente: uma movimentação pode ser algo novo ou o pagamento de um recorrente/parcelado já cadastrado, e só você sabe qual.
 
 ---
 
@@ -155,7 +166,7 @@ Notas:
 ### 1. Pré-requisitos
 
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) 3.x
-- Android SDK / Xcode (para iOS)
+- Android SDK / Xcode (para iOS) / Visual Studio com C++ (para Windows)
 
 ### 2. Clone e instale
 
@@ -185,6 +196,13 @@ FIREBASE_MESSAGING_SENDER_ID=123456789
 FIREBASE_STORAGE_BUCKET=meu-projeto.appspot.com
 ```
 
+**Com logos de marca** — chaves do [logo.dev](https://logo.dev) (também configuráveis em Perfil → Logos de marca):
+
+```env
+LOGO_DEV_TOKEN=pk_...    # baixa as imagens
+LOGO_DEV_SECRET=sk_...   # busca as marcas por nome
+```
+
 **Com Pluggy** — opcionalmente, embuta as credenciais da aplicação (também configuráveis no app, que sobrepõe o `.env`):
 
 ```env
@@ -194,7 +212,7 @@ PLUGGY_CLIENT_SECRET=...
 PLUGGY_ITEMS=fc8c9eef-...:Bradesco:bradesco.com.br,1a2b3c4d-...:Nubank:nubank.com.br
 ```
 
-Bancos do `PLUGGY_ITEMS` aparecem no app como "definido no .env" e se somam aos adicionados pela tela. A data de início de cada um é o dia em que o app o viu pela primeira vez.
+Bancos do `PLUGGY_ITEMS` aparecem no app como "definido no .env" (com cadeado: altere-os no `.env`, não pela tela) e se somam aos adicionados pela tela; se o mesmo item estiver nos dois, vale o do app. A data de início de cada um é o dia em que o app o viu pela primeira vez, e o logo é baixado sozinho no primeiro boot.
 
 > ⚠️ O arquivo `.env` está no `.gitignore` e **nunca deve ser commitado**.
 >
@@ -224,7 +242,7 @@ flutter run
 lib/
 ├── main.dart                     # Inicialização, Firebase opcional, MultiProvider
 ├── models/                       # Expense, Income, Category, PaymentMethod,
-│                                 #   BankTransaction, BankConnection, enums
+│                                 #   BankTransaction, BankConnection, BankOrigin, enums
 ├── providers/
 │   ├── expense_state.dart        # CRUD de gastos, computed helpers por mês
 │   ├── income_state.dart         # CRUD de rendimentos, computed helpers por mês
@@ -246,11 +264,14 @@ lib/
 │   ├── cloud_config.dart                 # Config do Firebase informada no app
 │   ├── notification_service.dart         # Notificações locais de vencimento
 │   ├── pluggy_client.dart                # API da Pluggy (auth, items, contas, transações)
-│   ├── pluggy_config.dart                # Credenciais (secret no armazenamento seguro) e bancos
+│   ├── pluggy_config.dart                # Credenciais (secret no armazenamento seguro) e bancos (app + PLUGGY_ITEMS)
 │   ├── bank_sync_service.dart            # Sincroniza e mantém a caixa de entrada
-│   └── bank_handled_store.dart           # Lembra o que já foi lançado/descartado
+│   ├── bank_handled_store.dart           # Lembra o que já foi lançado/descartado
+│   ├── logo_config.dart                  # Chaves do logo.dev: app → .env
+│   └── logo_service.dart                 # Busca e cache em disco dos logos
 ├── utils/                        # currency_formatter, date_utils, brazilian_currency_input_formatter
-├── widgets/                      # Componentes reutilizáveis (formulários, month_selector, ...)
+├── widgets/                      # Componentes reutilizáveis (formulários, month_selector,
+│                                 #   bank_inbox_button, bank_origin_badge, private_amount, ...)
 ├── theme/
 │   └── app_theme.dart
 └── assets/
