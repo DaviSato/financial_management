@@ -68,25 +68,36 @@ class FirestoreService {
   // ─── Bank transactions already handled (launched or discarded) ────────────
   //
   // Keyed by the Pluggy transaction id, so a transaction handled on one device
-  // does not show up again in the inbox of another.
+  // does not show up again in the inbox of another. Each doc also keeps a
+  // snapshot of the transaction and what was done with it (bank history).
 
-  Future<Map<String, String?>> getBankHandled() async {
+  Future<Map<String, Map<String, dynamic>>> getBankHistory() async {
     final snapshot = await _col('bank_handled').get();
-    return {
-      for (final d in snapshot.docs) d.id: d.data()['fingerprint'] as String?,
-    };
+    return {for (final d in snapshot.docs) d.id: d.data()};
   }
 
-  Future<void> saveBankHandled(Map<String, String?> entries) async {
-    if (entries.isEmpty) return;
-    final batch = _db.batch();
-    for (final e in entries.entries) {
-      batch.set(_col('bank_handled').doc(e.key), {
-        'fingerprint': e.value,
-        'handledAt': DateTime.now().toIso8601String(),
-      });
+  Future<void> saveBankHistory(Map<String, Map<String, dynamic>> entries) async {
+    final list = entries.entries.toList();
+    const chunkSize = 400;
+    for (var i = 0; i < list.length; i += chunkSize) {
+      final batch = _db.batch();
+      for (final e in list.sublist(i, min(i + chunkSize, list.length))) {
+        batch.set(_col('bank_handled').doc(e.key), e.value);
+      }
+      await batch.commit();
     }
-    await batch.commit();
+  }
+
+  Future<void> deleteBankHistory(Iterable<String> ids) async {
+    final list = ids.toList();
+    const chunkSize = 400;
+    for (var i = 0; i < list.length; i += chunkSize) {
+      final batch = _db.batch();
+      for (final id in list.sublist(i, min(i + chunkSize, list.length))) {
+        batch.delete(_col('bank_handled').doc(id));
+      }
+      await batch.commit();
+    }
   }
 
   // ─── Sync from Firestore → SharedPreferences ──────────────────────────────

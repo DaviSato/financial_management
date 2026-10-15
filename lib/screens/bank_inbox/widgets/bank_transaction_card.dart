@@ -5,6 +5,7 @@ import '../../../models/bank_transaction.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/currency_formatter.dart';
 import '../../../widgets/brand_avatar.dart';
+import 'bank_history_tile.dart' show aiColor;
 
 /// Uma movimentação do banco aguardando ser lançada.
 class BankTransactionCard extends StatelessWidget {
@@ -12,12 +13,28 @@ class BankTransactionCard extends StatelessWidget {
     super.key,
     required this.transaction,
     required this.onLaunch,
+    this.aiHint,
+    this.actionLabel,
+    this.secondaryLabel,
+    this.onSecondary,
   });
 
   final BankTransaction transaction;
 
-  /// Abre o formulário pré-preenchido.
+  /// Ação principal: abre o formulário pré-preenchido ou aplica a sugestão
+  /// da IA.
   final VoidCallback onLaunch;
+
+  /// Sugestão da IA que ficou para o usuário decidir (confiança baixa).
+  final String? aiHint;
+
+  /// Texto do botão principal; null = "Lançar gasto/renda".
+  final String? actionLabel;
+
+  /// Ação alternativa, quando a principal é a sugestão da IA (ex.: lançar
+  /// como gasto novo em vez de marcar um existente como pago).
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -89,19 +106,67 @@ class BankTransactionCard extends StatelessWidget {
                         const _Tag(text: 'pendente', color: Color(0xFFB0883B)),
                     ],
                   ),
+                  if (aiHint != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 1),
+                          child: Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 12,
+                            color: aiColor,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            aiHint!,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: aiColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            FilledButton(
-              onPressed: onLaunch,
-              style: FilledButton.styleFrom(
-                minimumSize: Size.zero,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                backgroundColor: color,
-              ),
-              child: Text(isExpense ? 'Lançar gasto' : 'Lançar renda'),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FilledButton(
+                  onPressed: onLaunch,
+                  style: FilledButton.styleFrom(
+                    minimumSize: Size.zero,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    backgroundColor: color,
+                  ),
+                  child: Text(
+                    actionLabel ?? (isExpense ? 'Lançar gasto' : 'Lançar renda'),
+                  ),
+                ),
+                if (secondaryLabel != null)
+                  TextButton(
+                    onPressed: onSecondary,
+                    style: TextButton.styleFrom(
+                      minimumSize: Size.zero,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      foregroundColor: Colors.white60,
+                      textStyle: const TextStyle(fontSize: 11),
+                    ),
+                    child: Text(secondaryLabel!),
+                  ),
+              ],
             ),
           ],
         ),

@@ -6,8 +6,9 @@ import '../services/bank_sync_service.dart';
 /// Sino no AppBar com quantas movimentações dos bancos conectados aguardam ser
 /// lançadas; abre a caixa de entrada.
 ///
-/// Some enquanto nenhum banco estiver configurado. Sincroniza ao aparecer e ao
-/// voltar ao primeiro plano — o [BankSyncService] limita a frequência real.
+/// Some enquanto nenhum banco estiver configurado. Sincroniza ao aparecer; a
+/// volta ao primeiro plano é tratada no MainScreen, que antes relê o que a
+/// sincronização em background gravou.
 class BankInboxButton extends StatefulWidget {
   const BankInboxButton({super.key});
 
@@ -15,32 +16,24 @@ class BankInboxButton extends StatefulWidget {
   State<BankInboxButton> createState() => _BankInboxButtonState();
 }
 
-class _BankInboxButtonState extends State<BankInboxButton>
-    with WidgetsBindingObserver {
+class _BankInboxButtonState extends State<BankInboxButton> {
   final _sync = BankSyncService();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _sync.addListener(_onChanged);
     _sync.sync();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _sync.removeListener(_onChanged);
     super.dispose();
   }
 
   void _onChanged() {
     if (mounted) setState(() {});
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _sync.sync();
   }
 
   @override
@@ -57,11 +50,7 @@ class _BankInboxButtonState extends State<BankInboxButton>
       icon: Badge(
         isLabelVisible: count > 0,
         label: Text('$count'),
-        child: Icon(
-          count > 0
-              ? Icons.notifications_active_outlined
-              : Icons.notifications_none_rounded,
-        ),
+        child: const Icon(Icons.account_balance_outlined),
       ),
     );
   }

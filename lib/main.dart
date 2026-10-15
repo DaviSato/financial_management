@@ -16,9 +16,13 @@ import 'screens/income_screen/income_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'services/auth_service.dart';
+import 'services/background_sync.dart';
+import 'services/bank_auto_launcher.dart';
+import 'services/bank_sync_service.dart';
 import 'services/cloud_config.dart';
 import 'services/firebase_config.dart';
 import 'services/firestore_service.dart';
+import 'services/gemini_config.dart';
 import 'services/logo_config.dart';
 import 'services/notification_service.dart';
 import 'services/pluggy_config.dart';
@@ -58,6 +62,9 @@ void main() async {
   // Credenciais da Pluggy e bancos conectados, mesmo esquema.
   await PluggyConfig().load();
 
+  // Chave do Gemini (lançamento automático), mesmo esquema.
+  await GeminiConfig().load();
+
   FirestoreService? firestoreService;
   if (FirebaseConfig.isConfigured) {
     try {
@@ -72,6 +79,10 @@ void main() async {
       firestoreService = null;
     }
   }
+
+  // Sincronização dos bancos com o app fechado (Android).
+  await BackgroundSync.markForeground(true);
+  await BackgroundSync.register();
 
   runApp(MainApp(firestoreService: firestoreService));
 }
@@ -99,6 +110,14 @@ class MainApp extends StatelessWidget {
     final expenseState = ExpenseState(firestoreService)..load();
     final incomeState = IncomeState(firestoreService)..load();
     final categoryState = CategoryState(expenseState, firestoreService)..load();
+
+    // O lançamento automático roda a cada sincronização, com ou sem a tela
+    // do banco aberta, então precisa dos providers daqui.
+    BankSyncService().autoLauncher = BankAutoLauncher(
+      expenses: expenseState,
+      incomes: incomeState,
+      categories: categoryState,
+    );
 
     if (firestoreService != null) {
       _syncFromCloud(expenseState, incomeState, categoryState, firestoreService!);
@@ -176,8 +195,52 @@ class _NavDestination {
   });
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _onResumed();
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        BackgroundSync.markForeground(false);
+      default:
+        break;
+    }
+  }
+
+  /// Volta ao primeiro plano: se a tarefa em background rodou, recarrega do
+  /// disco o que ela lançou antes de sincronizar — senão o cache velho daqui
+  /// sobrescreveria o que ela gravou.
+  Future<void> _onResumed() async {
+    await BackgroundSync.markForeground(true);
+    final ran = await BackgroundSync.reloadIfRan();
+    if (!mounted) return;
+    final sync = BankSyncService();
+    if (ran) {
+      sync.autoLauncher?.forget();
+      await Future.wait([
+        context.read<ExpenseState>().load(),
+        context.read<IncomeState>().load(),
+        context.read<CategoryState>().load(),
+      ]);
+    }
+    await sync.sync(force: ran);
+  }
 
   /// Acima desta largura a navegação vira um rail lateral em vez da barra
   /// inferior — o layout de celular estica feio numa janela de desktop.

@@ -98,6 +98,44 @@ class BankTransaction {
     return '$accountId|${type.name}|${amount.toStringAsFixed(2)}|$day';
   }
 
+  /// Retrato guardado no histórico: a Pluggy só devolve os últimos 60 dias,
+  /// então o que foi tratado precisa ficar salvo para continuar aparecendo.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'accountId': accountId,
+        'institution': institution,
+        if (institutionLogo != null) 'institutionLogo': institutionLogo,
+        if (accountLabel.isNotEmpty) 'accountLabel': accountLabel,
+        'amount': amount,
+        'type': type.name,
+        'description': description,
+        'date': date.toIso8601String(),
+        if (paymentMethod != null) 'paymentMethod': paymentMethod!.name,
+        if (pending) 'pending': true,
+        if (installmentNumber != null) 'installmentNumber': installmentNumber,
+        if (totalInstallments != null) 'totalInstallments': totalInstallments,
+      };
+
+  factory BankTransaction.fromJson(Map<String, dynamic> json) {
+    return BankTransaction(
+      id: json['id'] as String,
+      accountId: (json['accountId'] ?? '') as String,
+      institution: (json['institution'] ?? '') as String,
+      institutionLogo: json['institutionLogo'] as String?,
+      accountLabel: (json['accountLabel'] ?? '') as String,
+      amount: (json['amount'] as num).toDouble(),
+      type: json['type'] == TransactionType.income.name
+          ? TransactionType.income
+          : TransactionType.expense,
+      description: (json['description'] ?? '') as String,
+      date: DateTime.parse(json['date'] as String),
+      paymentMethod: PaymentMethod.fromString(json['paymentMethod'] as String?),
+      pending: json['pending'] == true,
+      installmentNumber: (json['installmentNumber'] as num?)?.toInt(),
+      totalInstallments: (json['totalInstallments'] as num?)?.toInt(),
+    );
+  }
+
   /// Traduz um item de `GET /v2/transactions`. Devolve `null` para o que não
   /// deve virar lançamento (ver [_ignored]).
   static BankTransaction? fromPluggy(

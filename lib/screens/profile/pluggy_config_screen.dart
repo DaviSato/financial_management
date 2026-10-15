@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/bank_connection.dart';
 import '../../services/bank_sync_service.dart';
+import '../../services/gemini_config.dart';
 import '../../services/pluggy_client.dart';
 import '../../services/pluggy_config.dart';
 import '../../theme/app_theme.dart';
@@ -24,7 +25,10 @@ class PluggyConfigScreen extends StatefulWidget {
 class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
   late final TextEditingController _idController;
   late final TextEditingController _secretController;
+  late final TextEditingController _geminiController;
   bool _obscureSecret = true;
+  bool _obscureGemini = true;
+  late bool _autoLaunch;
   bool _adding = false;
 
   @override
@@ -34,12 +38,15 @@ class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
     // Pré-preenche com o valor ativo (app ou .env), para ver e ajustar.
     _idController = TextEditingController(text: cfg.clientId);
     _secretController = TextEditingController(text: cfg.clientSecret);
+    _geminiController = TextEditingController(text: GeminiConfig().apiKey);
+    _autoLaunch = GeminiConfig().autoLaunch;
   }
 
   @override
   void dispose() {
     _idController.dispose();
     _secretController.dispose();
+    _geminiController.dispose();
     super.dispose();
   }
 
@@ -61,8 +68,17 @@ class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
     BankSyncService().reset();
   }
 
+  Future<void> _saveGemini() async {
+    final cfg = GeminiConfig();
+    if (_geminiController.text.trim() != cfg.apiKey) {
+      await cfg.saveApiKey(_geminiController.text);
+    }
+    if (_autoLaunch != cfg.autoLaunch) await cfg.setAutoLaunch(_autoLaunch);
+  }
+
   Future<void> _save() async {
     await _saveCredentials();
+    await _saveGemini();
     if (!mounted) return;
     _snack('Credenciais salvas.');
     Navigator.of(context).pop();
@@ -219,6 +235,55 @@ class _PluggyConfigScreenState extends State<PluggyConfigScreen> {
                 ),
               ),
               const SizedBox(height: 28),
+              const Text(
+                'Lançamento automático',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Cada movimentação nova vai para o Gemini, que lança o gasto ou '
+                'rendimento, marca como pago o recorrente que ela está pagando '
+                'ou descarta transferências entre suas contas. O que ele não '
+                'tiver certeza fica para você, com a sugestão. Tudo pode ser '
+                'desfeito pelo histórico.',
+                style: TextStyle(fontSize: 12, color: Colors.white54),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _geminiController,
+                autocorrect: false,
+                enableSuggestions: false,
+                obscureText: _obscureGemini,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: 'Chave da API do Gemini',
+                  prefixIcon: const Icon(Icons.auto_awesome_outlined),
+                  helperText: 'aistudio.google.com · gratuita',
+                  suffixIcon: IconButton(
+                    tooltip: _obscureGemini ? 'Mostrar' : 'Ocultar',
+                    icon: Icon(
+                      _obscureGemini
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureGemini = !_obscureGemini),
+                  ),
+                ),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Lançar automaticamente'),
+                subtitle: const Text(
+                  'Desligado, nada vai para a IA',
+                  style: TextStyle(fontSize: 12),
+                ),
+                value: _autoLaunch && _geminiController.text.trim().isNotEmpty,
+                onChanged: _geminiController.text.trim().isEmpty
+                    ? null
+                    : (v) => setState(() => _autoLaunch = v),
+              ),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   const Expanded(

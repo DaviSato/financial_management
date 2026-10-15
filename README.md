@@ -49,10 +49,13 @@ Gestor Financeiro é um app Flutter de código aberto para controle de gastos e 
 
 ### Movimentações do banco _(Pluggy)_
 - Traz as movimentações dos seus bancos via **Open Finance**, pelo [Meu Pluggy](https://www.pluggy.ai/meu-pluggy) (gratuito para as suas próprias contas)
-- **Caixa de entrada** com sino e contador nas abas principais — cada movimentação vira gasto ou rendimento só quando você confirma pelo formulário pré-preenchido (categoria obrigatória); nada é lançado sozinho
+- **Lançamento automático com IA** _(opcional, Gemini gratuito)_ — a cada sincronização, as movimentações novas vão direto para o Gemini, que lança o gasto/rendimento já pago e na categoria certa, marca como pago o recorrente/parcela que ela está pagando ou descarta transferências entre contas suas. Só aplica o que tem confiança alta; o resto fica em **Precisa da sua atenção** com a sugestão (e um botão "Marcar paga"/"Confirmar"/"Descartar")
+- **Caixa de entrada** com sino e contador nas abas principais — sem a IA, cada movimentação vira gasto ou rendimento quando você confirma pelo formulário pré-preenchido (categoria obrigatória)
 - Começa **a partir do dia em que o banco foi conectado** no app — sem importar histórico
 - Descrição pela contraparte (estabelecimento ou quem pagou), forma de pagamento (Pix, boleto, transferência, cartão) e parcelas; a primeira parcela sugere o parcelamento inteiro
 - **Deslize para descartar** ou "descartar tudo"; o que foi lançado/descartado não volta, nem em outro aparelho conectado à mesma nuvem
+- **Histórico** na mesma tela, abaixo das pendentes: tudo que chegou dos bancos, agrupado por dia, com filtro por resultado (lançada/descartada) e por banco. Tocar abre o lançamento criado ou **desfaz** (apaga o lançamento e devolve a movimentação às pendentes); descartadas podem voltar às pendentes. Guardado por 12 meses
+- **Última atualização** de cada banco no topo: quando a Pluggy trouxe os dados, quanto falta para a próxima e se a conexão precisa ser refeita
 - **Nome e logo por banco** — o conector do Meu Pluggy se chama sempre "MeuPluggy", então você informa qual banco é e escolhe o logo, que aparece como bandeira em cada movimentação, junto da conta/cartão (ex.: `Bradesco · Conta Corrente ••7890`)
 - **Selo de origem** — gastos e rendimentos lançados pela caixa de entrada mostram o logo do banco num selo no canto do ícone (inclusive em recorrentes/parcelados e em outros aparelhos)
 - Funciona em Android, iOS e Windows (só HTTP, sem serviço nativo)
@@ -119,7 +122,7 @@ users/
     incomes/     {id} → { amount, title, recurrenceType, bankOrigin?, ... }
     expenses/    {id} → { amount, title, category, paidByMonth, logoDomain?, bankOrigin?, ... }
     categories/  {id} → { name, color }
-    bank_handled/{id} → { fingerprint, handledAt }   # movimentações da Pluggy já lançadas/descartadas
+    bank_handled/{id} → { fingerprint, outcome, handledAt, transaction, launchedId }   # histórico da Pluggy (lançadas/descartadas)
 ```
 
 `bankOrigin` (`{ name, logoDomain }`) só existe nos lançamentos feitos pela caixa de entrada da Pluggy. Nome e logo do banco ficam no próprio lançamento — não o id do item — para o selo aparecer igual em aparelhos onde os bancos nem estão configurados.
@@ -157,7 +160,21 @@ Notas:
 - Compras no cartão aparecem como **pendentes** até a fatura fechar. Se a Pluggy trocar o id ao liquidar, o app reconhece a mesma compra (conta, valor, dia) e não a mostra de novo.
 - O pagamento da fatura do lado do cartão é ignorado (é só contábil); do lado da conta corrente ele aparece, porque é dinheiro que saiu.
 - Um **Pix entre contas suas** aparece duas vezes (saída num banco, entrada no outro). Não é gasto nem rendimento — descarte as duas.
-- Nada é lançado automaticamente: uma movimentação pode ser algo novo ou o pagamento de um recorrente/parcelado já cadastrado, e só você sabe qual.
+- Sem a chave do Gemini, nada é lançado automaticamente: uma movimentação pode ser algo novo ou o pagamento de um recorrente/parcelado já cadastrado, e só você sabe qual.
+
+### Lançamento automático (Gemini)
+
+1. Gere uma chave gratuita em [aistudio.google.com](https://aistudio.google.com/apikey).
+2. No app: **Perfil → Bancos conectados (Pluggy)** → **Chave da API do Gemini** e deixe **Lançar automaticamente** ligado (ou `GEMINI_API_KEY` no `.env`).
+
+Como funciona:
+
+- Roda depois de cada sincronização com a Pluggy, sem nenhum passo seu. Cada movimentação vai para a IA **uma vez só** (a resposta fica guardada), todas numa única chamada, com raciocínio no nível baixo — dá algumas centenas de tokens por sincronização, folgado na cota gratuita.
+- Vai para a IA só o necessário: as movimentações novas, os **nomes** das categorias e os gastos/rendimentos cadastrados do mês (nome, valor, vencimento) — para reconhecer o pagamento de um recorrente em vez de lançá-lo de novo.
+- Aplica sozinho só o que vier com confiança ≥ 80% e categoria existente; parcela 2+ sem o parcelamento cadastrado, Pix para pessoa física e pagamento de fatura ficam para você.
+- Tudo aparece no histórico com o selo ✨ e pode ser desfeito: um lançamento é apagado; um "pago" marcado num recorrente é desmarcado.
+- Cota esgotada, sem rede ou chave recusada: aparece um aviso e as pendentes ficam como estão — vão para a IA na próxima sincronização.
+- O modelo é o `gemini-3.5-flash` (`GeminiConfig.model`).
 
 ---
 
@@ -210,6 +227,8 @@ PLUGGY_CLIENT_ID=...
 PLUGGY_CLIENT_SECRET=...
 # bancos: itemId:Nome:domínio-do-logo, separados por vírgula (nome e logo opcionais)
 PLUGGY_ITEMS=fc8c9eef-...:Bradesco:bradesco.com.br,1a2b3c4d-...:Nubank:nubank.com.br
+# lançamento automático com IA (opcional)
+GEMINI_API_KEY=...
 ```
 
 Bancos do `PLUGGY_ITEMS` aparecem no app como "definido no .env" (com cadeado: altere-os no `.env`, não pela tela) e se somam aos adicionados pela tela; se o mesmo item estiver nos dois, vale o do app. A data de início de cada um é o dia em que o app o viu pela primeira vez, e o logo é baixado sozinho no primeiro boot.
@@ -266,7 +285,10 @@ lib/
 │   ├── pluggy_client.dart                # API da Pluggy (auth, items, contas, transações)
 │   ├── pluggy_config.dart                # Credenciais (secret no armazenamento seguro) e bancos (app + PLUGGY_ITEMS)
 │   ├── bank_sync_service.dart            # Sincroniza e mantém a caixa de entrada
-│   ├── bank_handled_store.dart           # Lembra o que já foi lançado/descartado
+│   ├── bank_history_store.dart           # Histórico do que foi lançado/descartado
+│   ├── bank_auto_launcher.dart           # Lançamento automático: manda para a IA e aplica
+│   ├── gemini_client.dart                # API do Gemini (classificação em JSON estruturado)
+│   ├── gemini_config.dart                # Chave do Gemini (armazenamento seguro) e liga/desliga
 │   ├── logo_config.dart                  # Chaves do logo.dev: app → .env
 │   └── logo_service.dart                 # Busca e cache em disco dos logos
 ├── utils/                        # currency_formatter, date_utils, brazilian_currency_input_formatter

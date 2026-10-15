@@ -32,6 +32,17 @@ class NotificationService {
     iOS: DarwinNotificationDetails(),
   );
 
+  static const _bankDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'bank_sync',
+      'Movimentações do banco',
+      channelDescription: 'O que chegou dos bancos e o que a IA lançou',
+    ),
+  );
+
+  /// Id fixo: o resumo novo substitui o anterior em vez de empilhar.
+  static const _bankSummaryId = 999998;
+
   Future<void> init() async {
     tz_data.initializeTimeZones();
 
@@ -131,6 +142,31 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     }
+  }
+
+  /// Resumo da sincronização em background: quantas a IA lançou sozinha e
+  /// quantas novas esperam o usuário.
+  Future<void> showBankSummary({
+    required int launched,
+    required int pending,
+  }) async {
+    final parts = [
+      if (launched > 0)
+        launched == 1
+            ? 'A IA lançou 1 movimentação'
+            : 'A IA lançou $launched movimentações',
+      if (pending > 0)
+        pending == 1
+            ? '1 nova esperando você'
+            : '$pending novas esperando você',
+    ];
+    if (parts.isEmpty) return;
+    await _plugin.show(
+      id: _bankSummaryId,
+      title: 'Movimentações do banco',
+      body: parts.join(' · '),
+      notificationDetails: _bankDetails,
+    );
   }
 
   /// Fires an immediate notification for expenses due today.

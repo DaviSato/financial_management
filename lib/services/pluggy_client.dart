@@ -19,12 +19,51 @@ class PluggyException implements Exception {
   String toString() => 'PluggyException($statusCode): $message';
 }
 
-/// Item da Pluggy como o app precisa dele: id e nome do banco.
+/// Item da Pluggy como o app precisa dele: id, nome do banco e quando a
+/// Pluggy buscou os dados no banco pela última vez.
 class PluggyItem {
   final String id;
   final String institution;
 
-  const PluggyItem({required this.id, required this.institution});
+  /// `UPDATED`, `UPDATING`, `OUTDATED`, `LOGIN_ERROR`, `WAITING_USER_INPUT`.
+  final String? status;
+
+  /// Última vez que a Pluggy trouxe dados do banco com sucesso (horário
+  /// local). É o "até quando" das movimentações da caixa de entrada.
+  final DateTime? lastUpdatedAt;
+
+  /// Próxima atualização automática agendada pela Pluggy (horário local).
+  final DateTime? nextAutoSyncAt;
+
+  const PluggyItem({
+    required this.id,
+    required this.institution,
+    this.status,
+    this.lastUpdatedAt,
+    this.nextAutoSyncAt,
+  });
+
+  bool get isUpdating => status == 'UPDATING';
+
+  /// Status que pedem ação do usuário no Meu Pluggy (reconectar, etc.).
+  bool get hasProblem =>
+      status == 'LOGIN_ERROR' ||
+      status == 'OUTDATED' ||
+      status == 'WAITING_USER_INPUT';
+
+  factory PluggyItem.fromJson(Map<String, dynamic> json) {
+    final connector = json['connector'] as Map<String, dynamic>?;
+    return PluggyItem(
+      id: json['id'] as String,
+      institution: (connector?['name'] ?? '') as String,
+      status: json['status'] as String?,
+      lastUpdatedAt: _parseDate(json['lastUpdatedAt']),
+      nextAutoSyncAt: _parseDate(json['nextAutoSyncAt']),
+    );
+  }
+
+  static DateTime? _parseDate(Object? value) =>
+      value is String ? DateTime.tryParse(value)?.toLocal() : null;
 }
 
 /// Cliente HTTP mínimo da API da Pluggy (https://api.pluggy.ai).
@@ -126,15 +165,10 @@ class PluggyClient {
     return 'HTTP ${response.statusCode}';
   }
 
-  /// `GET /items/{id}` — valida o id colado pelo usuário e lê o nome do banco.
-  Future<PluggyItem> getItem(String itemId) async {
-    final json = await _get('/items/$itemId');
-    final connector = json['connector'] as Map<String, dynamic>?;
-    return PluggyItem(
-      id: json['id'] as String,
-      institution: (connector?['name'] ?? '') as String,
-    );
-  }
+  /// `GET /items/{id}` — valida o id colado pelo usuário e lê o nome do banco
+  /// e a data da última atualização.
+  Future<PluggyItem> getItem(String itemId) async =>
+      PluggyItem.fromJson(await _get('/items/$itemId'));
 
   /// `GET /accounts?itemId=` — contas correntes, poupanças e cartões do item.
   Future<List<BankAccount>> getAccounts(String itemId) async {
