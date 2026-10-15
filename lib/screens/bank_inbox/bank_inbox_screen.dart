@@ -19,7 +19,6 @@ import '../../utils/currency_formatter.dart';
 import '../../widgets/expense_form.dart';
 import '../../widgets/income_form.dart';
 import '../../widgets/swipe_delete_background.dart';
-import '../../widgets/swipeable_card_frame.dart';
 import '../profile/pluggy_config_screen.dart';
 import 'widgets/bank_history_tile.dart';
 import 'widgets/bank_transaction_card.dart';
@@ -46,6 +45,11 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
   BankOutcome? _outcomeFilter;
   String? _bankFilter;
   bool _aiOnly = false;
+
+  /// Sincronização pedida pelo usuário (tentar de novo, voltar da
+  /// configuração). A que roda ao abrir a tela é silenciosa: os dados já
+  /// estão na tela e só mudam se a Pluggy trouxer algo novo.
+  bool _manualSync = false;
 
   @override
   void initState() {
@@ -76,10 +80,18 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
       MaterialPageRoute(builder: (_) => const PluggyConfigScreen()),
     );
     // Conexões podem ter mudado: busca de novo mesmo dentro do intervalo.
-    await _sync.sync(force: true);
+    await _retry();
   }
 
-  Future<void> _retry() => _sync.sync(force: true);
+  Future<void> _retry() async {
+    if (!mounted) return;
+    setState(() => _manualSync = true);
+    try {
+      await _sync.sync(force: true);
+    } finally {
+      if (mounted) setState(() => _manualSync = false);
+    }
+  }
 
   Future<void> _clearAll() async {
     final confirmed = await showDialog<bool>(
@@ -308,6 +320,9 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
     final action = await showModalBottomSheet<_EntryAction>(
       context: context,
       showDragHandle: true,
+      // Sem isso o sheet fica limitado a ~metade da tela e os detalhes de uma
+      // movimentação vinculada estouram embaixo, em cima dos botões.
+      isScrollControlled: true,
       builder: (_) => _EntrySheet(entry: entry, launched: launched),
     );
     if (!mounted || action == null) return;
@@ -411,7 +426,10 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
     List<BankHistoryEntry> history,
   ) {
     return [
-      if (_sync.isSyncing) const LinearProgressIndicator(),
+      // Barra só quando o usuário pediu ou ainda não há nada para mostrar.
+      if (_sync.isSyncing &&
+          (_manualSync || (pending.isEmpty && history.isEmpty)))
+        const LinearProgressIndicator(),
       if (_sync.lastError != null)
         _ErrorBanner(message: _sync.lastError!, onRetry: _retry),
       if (_sync.autoError != null)
@@ -432,47 +450,219 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
       ],
       if (pending.isNotEmpty) ...[
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 2),
           child: Row(
             children: [
-              const Icon(
-                Icons.priority_high_rounded,
-                size: 14,
-                color: Color(0xFFB0883B),
-              ),
-              const SizedBox(width: 4),
               Text(
-                'PRECISA DA SUA ATENÇÃO · ${pending.length}',
+                'PENDENTES',
                 style: _SectionLabel.style.copyWith(
                   color: const Color(0xFFB0883B),
                 ),
               ),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: _clearAll,
-                icon: const Icon(Icons.delete_sweep_outlined, size: 16),
-                label: const Text('Descartar tudo'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.expenseColor,
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFB0883B).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: Text(
+                  '${pending.length}',
+                  style: _SectionLabel.style.copyWith(
+                    color: const Color(0xFFB0883B),
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: _clearAll,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white54,
+                  textStyle: const TextStyle(fontSize: 12),
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Descartar tudo'),
               ),
             ],
           ),
         ),
-        for (final t in pending)
-          SwipeableCardFrame(
-            child: Dismissible(
-              key: ValueKey(t.id),
-              direction: DismissDirection.endToStart,
-              onDismissed: (_) => _sync.discard([t]),
-              background: const SwipeDeleteBackground(),
-              child: _pendingCard(t),
+        // Um bloco só, com divisórias: a moldura recorta o swipe nos cantos.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            ),
+            child: Column(
+              children: [
+                for (final (i, t) in pending.indexed) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: 62,
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
+                  Dismissible(
+                    key: ValueKey(t.id),
+                    direction: DismissDirection.endToStart,
+                    onDismissed: (_) => _sync.discard([t]),
+                    background: const SwipeDeleteBackground(),
+                    child: _pendingCard(t),
+                  ),
+                ],
+              ],
             ),
           ),
+        ),
       ],
       if (pending.isEmpty && history.isEmpty && !_sync.isSyncing)
         const _EmptyInbox(),
     ];
+  }
+
+  void _clearFilters() {
+    _outcomeFilter = null;
+    _bankFilter = null;
+    _aiOnly = false;
+  }
+
+  /// Filtros do histórico num sheet. Aplicam na hora: a lista atrás já
+  /// mostra o resultado.
+  Future<void> _openFilters(
+    List<BankHistoryEntry> history,
+    Map<String, String?> logos,
+    List<String> banks,
+  ) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheet) {
+          void update(VoidCallback change) {
+            setState(change);
+            setSheet(() {});
+          }
+
+          final bankFilter = banks.contains(_bankFilter) ? _bankFilter : null;
+          bool matchesBank(BankHistoryEntry e) =>
+              bankFilter == null || e.transaction!.institution == bankFilter;
+          bool matchesOutcome(BankHistoryEntry e) =>
+              _outcomeFilter == null || e.outcome == _outcomeFilter;
+          bool matchesAi(BankHistoryEntry e) => !_aiOnly || e.auto;
+
+          // Cada contador respeita os outros filtros: mostra quanto sobra ao
+          // escolher a opção.
+          final byBank = history.where(matchesBank).where(matchesAi);
+          final byOutcome = history.where(matchesOutcome).where(matchesAi);
+          final aiCount = history
+              .where((e) => e.auto && matchesBank(e) && matchesOutcome(e))
+              .length;
+          final hasFilter =
+              _outcomeFilter != null || _aiOnly || bankFilter != null;
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 12, 4),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'Filtrar histórico',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (hasFilter)
+                          TextButton(
+                            onPressed: () => update(_clearFilters),
+                            child: const Text('Limpar'),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const _SectionLabel('RESULTADO'),
+                  for (final o in [
+                    null,
+                    BankOutcome.launched,
+                    BankOutcome.discarded,
+                    BankOutcome.matched,
+                  ])
+                    // "Já cadastradas" só vira filtro quando existe.
+                    if (o != BankOutcome.matched ||
+                        history.any((e) => e.outcome == o))
+                      _FilterOption(
+                        leading: Icon(
+                          o?.icon ?? Icons.inbox_rounded,
+                          size: 20,
+                          color: o?.color ?? Colors.white60,
+                        ),
+                        label: o?.filterLabel ?? 'Todas',
+                        subtitle: o?.description,
+                        count: o == null
+                            ? byBank.length
+                            : byBank.where((e) => e.outcome == o).length,
+                        selected: _outcomeFilter == o,
+                        onTap: () => update(() => _outcomeFilter = o),
+                      ),
+                  if (history.any((e) => e.auto)) ...[
+                    const _SectionLabel('QUEM FEZ'),
+                    _FilterOption(
+                      leading: const Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 20,
+                        color: aiColor,
+                      ),
+                      label: 'Só o que a IA fez',
+                      count: aiCount,
+                      selected: _aiOnly,
+                      color: aiColor,
+                      toggle: true,
+                      onTap: () => update(() => _aiOnly = !_aiOnly),
+                    ),
+                  ],
+                  if (banks.length > 1) ...[
+                    const _SectionLabel('BANCO'),
+                    _FilterOption(
+                      leading: const Icon(
+                        Icons.account_balance_outlined,
+                        size: 20,
+                        color: Colors.white60,
+                      ),
+                      label: 'Todos',
+                      count: byOutcome.length,
+                      selected: bankFilter == null,
+                      onTap: () => update(() => _bankFilter = null),
+                    ),
+                    for (final b in banks)
+                      _FilterOption(
+                        leading: BankLogo(logoDomain: logos[b], size: 24),
+                        label: b,
+                        count: byOutcome
+                            .where((e) => e.transaction!.institution == b)
+                            .length,
+                        selected: bankFilter == b,
+                        onTap: () => update(() => _bankFilter = b),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   List<Widget> _historySlivers(List<BankHistoryEntry> history) {
@@ -493,21 +683,17 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
     // O banco filtrado pode ter sumido (conexão removida, histórico expirou).
     final bankFilter = banks.contains(_bankFilter) ? _bankFilter : null;
 
-    bool matchesBank(BankHistoryEntry e) =>
-        bankFilter == null || e.transaction!.institution == bankFilter;
-    bool matchesOutcome(BankHistoryEntry e) =>
-        _outcomeFilter == null || e.outcome == _outcomeFilter;
-    bool matchesAi(BankHistoryEntry e) => !_aiOnly || e.auto;
-
-    // Cada contador respeita os outros filtros, para mostrar quanto sobra ao
-    // tocar no chip.
-    final byBank = history.where(matchesBank).where(matchesAi).toList();
-    final byOutcome = history.where(matchesOutcome).where(matchesAi);
-    final filtered = byBank.where(matchesOutcome).toList();
-    final aiCount = history
-        .where((e) => e.auto && matchesBank(e) && matchesOutcome(e))
-        .length;
-    final hasAi = history.any((e) => e.auto);
+    final filtered = history
+        .where((e) =>
+            (bankFilter == null || e.transaction!.institution == bankFilter) &&
+            (_outcomeFilter == null || e.outcome == _outcomeFilter) &&
+            (!_aiOnly || e.auto))
+        .toList();
+    final active = [
+      if (_outcomeFilter case final o?) o.filterLabel,
+      if (_aiOnly) 'Pela IA',
+      ?bankFilter,
+    ];
 
     // Linhas achatadas: cabeçalho do dia (DateTime) seguido das entradas.
     final rows = <Object>[];
@@ -524,61 +710,59 @@ class _BankInboxScreenState extends State<BankInboxScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionLabel('HISTÓRICO'),
-            _ChipRow(
-              children: [
-                for (final o in [
-                  null,
-                  BankOutcome.launched,
-                  BankOutcome.discarded,
-                  BankOutcome.matched,
-                ])
-                  // "Já cadastradas" só vira filtro quando existe.
-                  if (o != BankOutcome.matched ||
-                      history.any((e) => e.outcome == o))
-                    _FilterChip(
-                      label: o?.filterLabel ?? 'Todas',
-                      count: o == null
-                          ? byBank.length
-                          : byBank.where((e) => e.outcome == o).length,
-                      color: o?.color,
-                      selected: _outcomeFilter == o,
-                      onTap: () => setState(() => _outcomeFilter = o),
-                    ),
-                if (hasAi)
-                  _FilterChip(
-                    label: 'Pela IA',
-                    count: aiCount,
-                    color: aiColor,
-                    icon: Icons.auto_awesome_rounded,
-                    selected: _aiOnly,
-                    onTap: () => setState(() => _aiOnly = !_aiOnly),
-                  ),
-              ],
-            ),
-            if (banks.length > 1)
-              _ChipRow(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+              child: Row(
                 children: [
-                  for (final b in banks)
-                    _FilterChip(
-                      label: b,
-                      count: byOutcome
-                          .where((e) => e.transaction!.institution == b)
-                          .length,
-                      avatar: BankLogo(logoDomain: logos[b], size: 20),
-                      selected: bankFilter == b,
-                      onTap: () => setState(
-                        () => _bankFilter = bankFilter == b ? null : b,
-                      ),
+                  const Text('HISTÓRICO', style: _SectionLabel.style),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _openFilters(history, logos, banks),
+                    icon: Badge(
+                      isLabelVisible: active.isNotEmpty,
+                      label: Text('${active.length}'),
+                      backgroundColor: AppTheme.primaryColor,
+                      child: const Icon(Icons.tune_rounded, size: 18),
                     ),
+                    label: const Text('Filtrar'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: active.isEmpty
+                          ? Colors.white60
+                          : AppTheme.primaryColor,
+                      textStyle: const TextStyle(fontSize: 12),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
                 ],
               ),
-            if (_outcomeFilter case final o?)
+            ),
+            if (active.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
-                child: Text(
-                  o.description,
-                  style: const TextStyle(fontSize: 11, color: Colors.white38),
+                padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${active.join(' · ')} — ${filtered.length} de '
+                        '${history.length}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(_clearFilters),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white54,
+                        textStyle: const TextStyle(fontSize: 12),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: const Text('Limpar'),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -639,7 +823,7 @@ class _EntrySheet extends StatelessWidget {
             launched == null;
 
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -696,7 +880,9 @@ class _EntrySheet extends StatelessWidget {
             _detail(
               'Resultado',
               [
-                outcomeLabel(entry),
+                // "Paga pela IA" soaria como se a IA tivesse pago; o que ela
+                // (ou o usuário) fez foi lançar. O vínculo aparece abaixo.
+                matched ? 'Lançada' : outcomeLabel(entry),
                 if (entry.auto) 'pela IA',
                 if (handledAt != null)
                   'em ${DateFormat("dd/MM 'às' HH:mm", 'pt_BR').format(handledAt)}',
@@ -828,85 +1014,91 @@ class _DayHeader extends StatelessWidget {
   }
 }
 
-/// Linha de chips com rolagem horizontal.
-class _ChipRow extends StatelessWidget {
-  const _ChipRow({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: children,
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
+/// Uma opção do sheet de filtros: ícone, rótulo, quantas sobram e a marca
+/// de selecionada (rádio, ou caixa quando [toggle]).
+class _FilterOption extends StatelessWidget {
+  const _FilterOption({
+    required this.leading,
     required this.label,
     required this.count,
     required this.selected,
     required this.onTap,
+    this.subtitle,
     this.color,
-    this.icon,
-    this.avatar,
+    this.toggle = false,
   });
 
+  final Widget leading;
   final String label;
+  final String? subtitle;
   final int count;
   final bool selected;
   final VoidCallback onTap;
 
-  /// Cor do resultado; o chip selecionado fica tingido dela.
+  /// Cor da marca de selecionada; null = cor principal.
   final Color? color;
-  final IconData? icon;
-  final Widget? avatar;
+  final bool toggle;
 
   @override
   Widget build(BuildContext context) {
     final tint = color ?? AppTheme.primaryColor;
-    final empty = count == 0 && !selected;
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: Opacity(
-        opacity: empty ? 0.5 : 1,
-        child: ChoiceChip(
-          avatar: avatar ??
-              (icon != null
-                  ? Icon(icon, size: 14, color: selected ? Colors.white : tint)
-                  : null),
-          label: Text.rich(
-            TextSpan(
-              text: label,
-              children: [
-                TextSpan(
-                  text: '  $count',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white70 : Colors.white38,
+    final IconData mark = toggle
+        ? (selected
+            ? Icons.check_box_rounded
+            : Icons.check_box_outline_blank_rounded)
+        : (selected
+            ? Icons.radio_button_checked_rounded
+            : Icons.radio_button_unchecked_rounded);
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          children: [
+            SizedBox(width: 28, child: Center(child: leading)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: count == 0 && !selected ? Colors.white38 : null,
+                    ),
                   ),
-                ),
-              ],
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white38,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-          selected: selected,
-          onSelected: (_) => onTap(),
-          showCheckmark: false,
-          visualDensity: VisualDensity.compact,
-          selectedColor: tint.withValues(alpha: 0.35),
-          side: BorderSide(
-            color: selected ? tint : Colors.white.withValues(alpha: 0.12),
-          ),
-          labelStyle: TextStyle(
-            fontSize: 12,
-            color: selected ? Colors.white : Colors.white70,
-          ),
+            const SizedBox(width: 12),
+            Text(
+              '$count',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white38,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              mark,
+              size: 20,
+              color: selected ? tint : Colors.white24,
+            ),
+          ],
         ),
       ),
     );
